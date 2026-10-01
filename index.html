@@ -215,6 +215,7 @@ li.zero .txt strong{color:var(--soft)}
 .qty span.bump{animation:bump .35s var(--ease)}
 @keyframes bump{50%{transform:scale(1.35)}}
 .qty span{display:inline-block}
+body.nosubs .subsel,body.nosubs #esubl,body.nosubs #subchips,body.nosubs .sublist,body.nosubs .addsub{display:none!important}
 .subhead{font-size:.78rem;color:var(--soft);margin:12px 10px 6px;font-weight:500}
 .subchips{margin-top:8px}
 .subchips .chip{font-size:.82rem;padding:5px 11px}
@@ -339,7 +340,7 @@ li.zero .txt strong{color:var(--soft)}
     <h3 id="eh">Editar</h3>
     <label>Nombre<input id="ename" autocomplete="off"></label>
     <label>Categoría<select id="ecat"></select></label>
-    <label>Subcategoría<select id="esub" class="subsel" data-for="ecat"></select></label>
+    <label id="esubl">Subcategoría<select id="esub" class="subsel" data-for="ecat"></select></label>
     <div class="qrow" style="grid-template-columns:1fr 7.2em">
       <label>Cantidad<input id="eqty" type="number" inputmode="decimal" min="0" step="any"></label>
       <label>Unidad<select id="eunit"><option value="u">unid.</option><option value="kg">kg</option><option value="l">litros</option></select></label>
@@ -362,6 +363,11 @@ li.zero .txt strong{color:var(--soft)}
     <div class="seg" id="themeseg" role="group" aria-label="Apariencia">
       <button type="button" data-th="light">Blanco</button>
       <button type="button" data-th="dark">Oscuro</button>
+    </div>
+    <div class="setlbl">Subcategorías</div>
+    <div class="seg" id="subseg" role="group" aria-label="Subcategorías">
+      <button type="button" data-sb="on">Activadas</button>
+      <button type="button" data-sb="off">Desactivadas</button>
     </div>
     <div class="setlbl">Respaldo</div>
     <div class="bkrow">
@@ -450,7 +456,13 @@ let SUBS=load(SUBKEY,{}); if(!SUBS||typeof SUBS!=="object"||Array.isArray(SUBS))
 const saveSubs=()=>store(SUBKEY,SUBS);
 const subsOf=c=>Array.isArray(SUBS[c])?SUBS[c]:[];
 let filterSub="";
-const catTxt=x=>esc(x.cat)+(x.sub?" › "+esc(x.sub):"");
+const subOn=()=>prefs.subs===true;
+const catTxt=x=>esc(x.cat)+(subOn()&&x.sub?" › "+esc(x.sub):"");
+function applySubs(){
+  document.body.classList.toggle("nosubs",!subOn());
+  const sg=document.getElementById("subseg");
+  if(sg) [...sg.children].forEach(b=>b.setAttribute("aria-pressed",(b.dataset.sb==="on")===subOn()));
+}
 const saveInv=()=>store(INVKEY,inv), saveCats=()=>store(CKEY,CATS), saveHist=()=>store(HKEY,hist), saveLog=()=>store(LKEY,log), savePrefs=()=>store(SKEY,prefs), saveCart=()=>store(CARTKEY,cart);
 const fmt=n=>"$"+(Math.round(n*100)/100).toLocaleString("es");
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -562,6 +574,7 @@ function renderCatList(){
           <button class="del" type="button" data-rs="${esc(sb)}" data-of="${esc(c)}" aria-label="Quitar subcategoría ${esc(sb)}">${ICON.x}</button></li>`; }).join("")}</ul>
       <button type="button" class="addsub" data-as="${esc(c)}">+ Subcategoría</button></li>`; }).join("");
 }
+[...$("subseg").children].forEach(b=>b.addEventListener("click",()=>{ prefs.subs=b.dataset.sb==="on"; savePrefs(); filterSub=""; applySubs(); renderCatList(); render(); }));
 $("catlock").addEventListener("click",()=>{ prefs.catLocked=!prefs.catLocked; savePrefs(); renderCatList(); });
 function renameCat(oldN,newN){
   CATS=CATS.map(c=>c===oldN?newN:c);
@@ -712,8 +725,8 @@ $("f").addEventListener("submit",e=>{
   const name=$("name").value.trim(); if(!name) return;
   if(!CATS.includes($("cat").value)) return needCat($("cat"),$("f"));
   const q=Math.max(0,readQ($("iqty"))||0), unit=$("iunit").value;
-  const sub=$("sub").value==="__new"?"":$("sub").value;
-  const ex=inv.find(i=>norm(i.name)===norm(name)&&i.cat===$("cat").value&&(i.sub||"")===sub);
+  const sub=!subOn()||$("sub").value==="__new"?"":$("sub").value;
+  const ex=inv.find(i=>norm(i.name)===norm(name)&&i.cat===$("cat").value&&(!subOn()||(i.sub||"")===sub));
   if(ex){ ex.qty=r3(ex.qty+q); lastId=ex.id; bumpId=ex.id; }
   else { const it={id:newId(),name,cat:$("cat").value,sub,qty:q,unit}; inv.unshift(it); lastId=it.id; }
   $("name").value=""; $("iqty").value=""; $("iunit").value="u"; $("name").focus();
@@ -741,7 +754,8 @@ function renderInv(){
   $("hint").textContent=inv.length?(manual?"Usa − cuando ocupes algo. Mantén presionado para editar, arrastra los puntitos para mover.":"Usa − cuando ocupes algo. Mantén presionado para editar."):"";
   const out=inv.filter(i=>i.qty<=0).length;
   $("isum").innerHTML=inv.length?`<span><b>${inv.length}</b> cosas en casa</span>${out?`<span>, <b>${out}</b> ${out===1?"se acabó":"se acabaron"}</span>`:""}`:"";
-  const fsubs=filter==="Todas"?[]:[...subsOf(filter),...inv.filter(i=>i.cat===filter&&i.sub&&!subsOf(filter).includes(i.sub)).map(i=>i.sub)].filter((x,k,a)=>a.indexOf(x)===k);
+  if(!subOn()) filterSub="";
+  const fsubs=(filter==="Todas"||!subOn())?[]:[...subsOf(filter),...inv.filter(i=>i.cat===filter&&i.sub&&!subsOf(filter).includes(i.sub)).map(i=>i.sub)].filter((x,k,a)=>a.indexOf(x)===k);
   if(filterSub&&!fsubs.includes(filterSub)) filterSub="";
   $("subchips").hidden=!fsubs.length;
   $("subchips").innerHTML=fsubs.length?["",...fsubs].map(x=>`<button class="chip" type="button" aria-pressed="${x===filterSub}" data-sc="${esc(x)}">${x?esc(x):"Todo "+esc(filter)}</button>`).join(""):"";
@@ -759,6 +773,7 @@ function renderInv(){
       </li>`;
   $("inv").innerHTML=groups.map(({c,g})=>{
     if(together) return `<div class="group"><ul>${g.map(row).join("")}</ul></div>`;
+    if(!subOn()) return `<div class="group"><div class="ghead"><span>${esc(c)}</span><span>${g.length}</span></div><ul>${g.map(row).join("")}</ul></div>`;
     const keys=["",...subsOf(c),...g.map(i=>i.sub||"").filter(x=>x&&!subsOf(c).includes(x))].filter((x,k,a)=>a.indexOf(x)===k);
     return `<div class="group"><div class="ghead"><span>${esc(c)}</span><span>${g.length}</span></div>`+keys.map(k=>{
       const sg=g.filter(i=>(i.sub||"")===k); if(!sg.length) return "";
@@ -783,12 +798,12 @@ $("cf").addEventListener("submit",e=>{
   e.preventDefault();
   const name=$("cname").value.trim(); if(!name) return;
   if(!CATS.includes($("ccat").value)) return needCat($("ccat"),$("cf"));
-  addCart({name,cat:$("ccat").value,price:prefs.priceMode==="item"?(parseFloat($("cprice").value)||0):0,qty:Math.max(0.001,readQ($("cqty"))||1),unit:$("cunit").value,sub:$("csub").value==="__new"?"":$("csub").value});
+  addCart({name,cat:$("ccat").value,price:prefs.priceMode==="item"?(parseFloat($("cprice").value)||0):0,qty:Math.max(0.001,readQ($("cqty"))||1),unit:$("cunit").value,sub:!subOn()||$("csub").value==="__new"?"":$("csub").value});
   $("cname").value=""; $("cprice").value=""; $("cqty").value=1; $("cunit").value="u"; $("cprice").placeholder=UNIT.u.ph; $("cname").focus();
   render();
 });
 function addCart(o){
-  const ex=cart.find(c=>norm(c.name)===norm(o.name)&&c.cat===o.cat&&(c.sub||"")===(o.sub||"")&&un(c)===un(o)&&(prefs.priceMode==="total"||c.price===o.price));
+  const ex=cart.find(c=>norm(c.name)===norm(o.name)&&c.cat===o.cat&&(!subOn()||(c.sub||"")===(o.sub||""))&&un(c)===un(o)&&(prefs.priceMode==="total"||c.price===o.price));
   if(ex){ ex.qty=r3(ex.qty+o.qty); lastId=ex.id; } else { const c=Object.assign({id:newId()},o); cart.push(c); lastId=c.id; }
   saveCart();
 }
@@ -889,7 +904,7 @@ function renderStats(){
 }
 
 /* ---------- Pintar ---------- */
-function render(){ syncSubs(); renderInv(); renderCart(); renderStats(); lastId=null; bumpId=null; }
+function render(){ applySubs(); syncSubs(); renderInv(); renderCart(); renderStats(); lastId=null; bumpId=null; }
 
 /* ---------- Toques ---------- */
 let suppressClick=false;
@@ -966,7 +981,7 @@ function saveEdit(){
   const list=editKind==="cart"?cart:inv;
   const it=list.find(i=>i.id===editId); if(!it) return closeEdit();
   const n=$("ename").value.trim(); if(n) it.name=n;
-  it.cat=$("ecat").value; it.sub=$("esub").value==="__new"?"":$("esub").value;
+  it.cat=$("ecat").value; if(subOn()) it.sub=$("esub").value==="__new"?"":$("esub").value;
   const q=readQ($("eqty")); it.unit=$("eunit").value;
   if(editKind==="cart"){ it.qty=q>0?q:it.qty; const v=parseFloat($("eprice").value); it.price=isNaN(v)?0:v; saveCart(); }
   else { it.qty=Math.max(0,isNaN(q)?it.qty:q); saveInv(); }
