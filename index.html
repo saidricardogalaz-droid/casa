@@ -215,6 +215,15 @@ li.zero .txt strong{color:var(--soft)}
 .qty span.bump{animation:bump .35s var(--ease)}
 @keyframes bump{50%{transform:scale(1.35)}}
 .qty span{display:inline-block}
+.subhead{font-size:.78rem;color:var(--soft);margin:12px 10px 6px;font-weight:500}
+.subchips{margin-top:8px}
+.subchips .chip{font-size:.82rem;padding:5px 11px}
+.sublist{flex-basis:100%;margin:4px 0 0 18px;padding:0!important;border:none!important;box-shadow:none!important;background:transparent!important;max-height:none!important}
+.sublist li{padding:5px 8px!important}
+.sublist li strong{font-weight:400;font-size:.92rem}
+.addsub{color:var(--accent);font-size:.82rem;padding:4px 8px;margin-left:18px}
+.qrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
+.qty span{white-space:nowrap}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--field);border-radius:999px;padding:3px;margin-bottom:4px}
 .seg button{padding:7px 0;font-size:.82rem;color:var(--soft);border-radius:999px}
 .seg button[aria-pressed="true"]{background:var(--paper);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -249,8 +258,10 @@ li.zero .txt strong{color:var(--soft)}
     <form id="f" class="card">
       <input id="name" placeholder="¿Qué tienes? Ej: fideos" required autocomplete="off">
       <select id="cat" class="catsel" aria-label="Categoría"></select>
-      <div class="pr">
-        <input id="iqty" type="number" inputmode="numeric" min="0" step="1" placeholder="Cantidad que tienes" aria-label="Cantidad">
+      <select id="sub" class="subsel" data-for="cat" aria-label="Subcategoría"></select>
+      <div class="qrow">
+        <input id="iqty" type="number" inputmode="decimal" min="0" step="any" placeholder="Cant." aria-label="Cantidad">
+        <select id="iunit" aria-label="Unidad"><option value="u">unid.</option><option value="kg">kg</option><option value="l">litros</option></select>
         <button class="add" type="submit">Agregar</button>
       </div>
     </form>
@@ -263,6 +274,7 @@ li.zero .txt strong{color:var(--soft)}
       </select>
       <button type="button" class="lock" id="lock" aria-label="Bloquear orden"></button>
     </div>
+    <div class="chips subchips" id="subchips" role="group" aria-label="Filtrar por subcategoría" hidden></div>
     <div class="seg viewseg" id="gview" role="group" aria-label="Cómo ver">
       <button type="button" data-gv="cat">Por categoría</button>
       <button type="button" data-gv="all">Todo junto</button>
@@ -286,9 +298,11 @@ li.zero .txt strong{color:var(--soft)}
       <input id="cname" placeholder="¿Qué llevas?" required autocomplete="off" list="invnames">
       <datalist id="invnames"></datalist>
       <select id="ccat" class="catsel" aria-label="Categoría"></select>
-      <div class="pq" id="cpq">
-        <input id="cprice" type="number" inputmode="decimal" min="0" step="any" placeholder="Precio c/u" aria-label="Precio por unidad">
-        <input id="cqty" type="number" inputmode="numeric" min="1" step="1" value="1" aria-label="Cantidad">
+      <select id="csub" class="subsel" data-for="ccat" aria-label="Subcategoría"></select>
+      <input id="cprice" type="number" inputmode="decimal" min="0" step="any" placeholder="Precio c/u" aria-label="Precio">
+      <div class="qrow">
+        <input id="cqty" type="number" inputmode="decimal" min="0" step="any" value="1" aria-label="Cantidad">
+        <select id="cunit" aria-label="Unidad"><option value="u">unid.</option><option value="kg">kg</option><option value="l">litros</option></select>
         <button class="add" type="submit">Sumar</button>
       </div>
       <div class="sug" id="fromlist" hidden>
@@ -325,7 +339,11 @@ li.zero .txt strong{color:var(--soft)}
     <h3 id="eh">Editar</h3>
     <label>Nombre<input id="ename" autocomplete="off"></label>
     <label>Categoría<select id="ecat"></select></label>
-    <label>Cantidad<input id="eqty" type="number" inputmode="numeric" min="0" step="1"></label>
+    <label>Subcategoría<select id="esub" class="subsel" data-for="ecat"></select></label>
+    <div class="qrow" style="grid-template-columns:1fr 7.2em">
+      <label>Cantidad<input id="eqty" type="number" inputmode="decimal" min="0" step="any"></label>
+      <label>Unidad<select id="eunit"><option value="u">unid.</option><option value="kg">kg</option><option value="l">litros</option></select></label>
+    </div>
     <label id="epricel">Precio c/u<input id="eprice" type="number" inputmode="decimal" min="0" step="any" placeholder="Sin precio"></label>
     <div class="prow">
       <button type="button" class="ghost red" id="edel">Borrar</button>
@@ -427,9 +445,21 @@ if(prefs.sort!=="manual"&&prefs.sort!=="name"&&prefs.sort!=="qasc") prefs.sort="
 let filter="Todas", lastId=null, bumpId=null, editId=null, editKind="inv";
 const openDays=new Set(); let homeOpen=false;
 
+const SUBKEY="lista-casa-subs-v1";
+let SUBS=load(SUBKEY,{}); if(!SUBS||typeof SUBS!=="object"||Array.isArray(SUBS)) SUBS={};
+const saveSubs=()=>store(SUBKEY,SUBS);
+const subsOf=c=>Array.isArray(SUBS[c])?SUBS[c]:[];
+let filterSub="";
+const catTxt=x=>esc(x.cat)+(x.sub?" › "+esc(x.sub):"");
 const saveInv=()=>store(INVKEY,inv), saveCats=()=>store(CKEY,CATS), saveHist=()=>store(HKEY,hist), saveLog=()=>store(LKEY,log), savePrefs=()=>store(SKEY,prefs), saveCart=()=>store(CARTKEY,cart);
 const fmt=n=>"$"+(Math.round(n*100)/100).toLocaleString("es");
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const UNIT={u:{short:"",step:1,per:"c/u",ph:"Precio c/u"},kg:{short:" kg",step:.5,per:"el kg",ph:"Precio por kg"},l:{short:" L",step:.5,per:"el litro",ph:"Precio por litro"}};
+const un=x=>UNIT[x&&x.unit]?x.unit:"u";
+const r3=n=>Math.round(n*1000)/1000;
+const numQ=n=>r3(n).toLocaleString("es",{maximumFractionDigits:3});
+const fmtQ=x=>numQ(x.qty)+UNIT[un(x)].short;
+const readQ=el=>{ const v=parseFloat(String(el.value).replace(",",".")); return isNaN(v)?NaN:r3(v); };
 const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
 function remember(name,cat,price){ const k=norm(name); const h=hist[k]||{name,cat,count:0,price:0}; h.name=name; h.cat=cat; h.count++; if(price) h.price=price; hist[k]=h; }
 
@@ -450,7 +480,7 @@ applyTheme(false);
 let downloadsApi=null;
 if(window.claude&&typeof window.claude.use==="function"){ window.claude.use("downloads").then(d=>{ downloadsApi=d; }).catch(()=>{}); }
 const stamp=()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
-function backupText(){ return JSON.stringify({app:"lista-casa",version:1,fecha:new Date().toISOString(),inv,cats:CATS,cart,log,hist,prefs}); }
+function backupText(){ return JSON.stringify({app:"lista-casa",version:1,fecha:new Date().toISOString(),inv,cats:CATS,subs:SUBS,cart,log,hist,prefs}); }
 function bkInfo(){ $("bkinfo").textContent=prefs.lastBackup?"Último respaldo: "+new Date(prefs.lastBackup).toLocaleDateString("es",{day:"numeric",month:"long",year:"numeric"}):"Todavía no has hecho un respaldo."; }
 let bkMode="";
 function openBk(mode){
@@ -504,7 +534,7 @@ $("bkyes").onclick=async()=>{
   if(!d||d.app!=="lista-casa"||!Array.isArray(d.inv)){ $("bkx").textContent="Ese texto no es un respaldo válido. Revisa que lo hayas pegado completo."; return; }
   ask("¿Restaurar este respaldo?","Lo que tienes ahora se reemplazará por lo del respaldo.","Restaurar",okd=>{
     if(!okd) return;
-    inv=d.inv; CATS=Array.isArray(d.cats)?d.cats:CATS; cart=Array.isArray(d.cart)?d.cart:[];
+    inv=d.inv; CATS=Array.isArray(d.cats)?d.cats:CATS; SUBS=d.subs&&typeof d.subs==="object"?d.subs:{}; saveSubs(); cart=Array.isArray(d.cart)?d.cart:[];
     log=Array.isArray(d.log)?d.log:[]; hist=d.hist&&typeof d.hist==="object"?d.hist:{};
     if(d.prefs&&typeof d.prefs==="object"){ const keepTheme=prefs.theme; prefs=Object.assign(prefs,d.prefs); prefs.theme=d.prefs.theme||keepTheme; }
     saveInv(); saveCats(); saveCart(); saveLog(); saveHist(); savePrefs();
@@ -521,14 +551,21 @@ function renderCatList(){
   $("catlock").setAttribute("aria-label",locked?"Desbloquear orden de categorías":"Bloquear orden de categorías");
   $("cathint").textContent=locked?"Orden bloqueado. Toca el candado para moverlas.":"Arrastra los puntitos para cambiar el orden. El lápiz cambia el nombre.";
   $("catlist").innerHTML=CATS.map(c=>{ const n=inv.filter(i=>i.cat===c).length;
-    return `<li data-cat="${esc(c)}">${locked?"":`<button class="handle" type="button" aria-label="Mover ${esc(c)}">${ICON.grip}</button>`}
+    return `<li data-cat="${esc(c)}" style="flex-wrap:wrap">${locked?"":`<button class="handle" type="button" aria-label="Mover ${esc(c)}">${ICON.grip}</button>`}
       <div class="txt"><strong>${esc(c)}</strong></div><span class="n">${n===1?"1 cosa":n+" cosas"}</span>
       <button class="edit" type="button" data-ec="${esc(c)}" aria-label="Cambiar nombre de ${esc(c)}">${ICON.pen}</button>
-      <button class="del" type="button" data-rc="${esc(c)}" aria-label="Quitar categoría ${esc(c)}">${ICON.x}</button></li>`; }).join("");
+      <button class="del" type="button" data-rc="${esc(c)}" aria-label="Quitar categoría ${esc(c)}">${ICON.x}</button>
+      <ul class="sublist" data-cat="${esc(c)}">${subsOf(c).map(sb=>{ const m=inv.filter(i=>i.cat===c&&i.sub===sb).length;
+        return `<li data-sub="${esc(sb)}">${locked?"":`<button class="handle" type="button" aria-label="Mover ${esc(sb)}">${ICON.grip}</button>`}
+          <div class="txt"><strong>${esc(sb)}</strong></div><span class="n">${m===1?"1 cosa":m+" cosas"}</span>
+          <button class="edit" type="button" data-es="${esc(sb)}" data-of="${esc(c)}" aria-label="Cambiar nombre de ${esc(sb)}">${ICON.pen}</button>
+          <button class="del" type="button" data-rs="${esc(sb)}" data-of="${esc(c)}" aria-label="Quitar subcategoría ${esc(sb)}">${ICON.x}</button></li>`; }).join("")}</ul>
+      <button type="button" class="addsub" data-as="${esc(c)}">+ Subcategoría</button></li>`; }).join("");
 }
 $("catlock").addEventListener("click",()=>{ prefs.catLocked=!prefs.catLocked; savePrefs(); renderCatList(); });
 function renameCat(oldN,newN){
   CATS=CATS.map(c=>c===oldN?newN:c);
+  if(SUBS[oldN]){ SUBS[newN]=SUBS[oldN]; delete SUBS[oldN]; saveSubs(); }
   inv.forEach(i=>{ if(i.cat===oldN) i.cat=newN; });
   cart.forEach(i=>{ if(i.cat===oldN) i.cat=newN; });
   log.forEach(l=>{ if(l.cat===oldN) l.cat=newN; });
@@ -541,6 +578,25 @@ $("gear").addEventListener("click",()=>{ renderCatList(); bkInfo(); applyTheme(f
 $("setclose").onclick=()=>{ $("settings").hidden=true; };
 $("settings").addEventListener("click",e=>{
   if(e.target.id==="settings"){ $("settings").hidden=true; return; }
+  const as=e.target.closest("[data-as]");
+  if(as){ const c=as.dataset.as;
+    ask("Nueva subcategoría","Dentro de "+c,"Crear",(okd,val)=>{ const n=okd?(val||"").trim():""; if(!n) return;
+      if(subsOf(c).some(x=>x.toLowerCase()===n.toLowerCase())) return;
+      SUBS[c]=[...subsOf(c),n]; saveSubs(); renderCatList(); render(); },{type:"text",placeholder:"Ej: Comida, Xbox"}); return; }
+  const es=e.target.closest("[data-es]");
+  if(es){ const c=es.dataset.of, old=es.dataset.es;
+    ask("Cambiar nombre","Subcategoría de "+c,"Guardar",(okd,val)=>{ const n=okd?(val||"").trim():""; if(!n||n===old) return;
+      if(subsOf(c).some(x=>x!==old&&x.toLowerCase()===n.toLowerCase())){ ask("Ese nombre ya existe","Elige otro nombre.","Entendido",()=>{}); return; }
+      SUBS[c]=subsOf(c).map(x=>x===old?n:x);
+      [inv,cart,log].forEach(L=>L.forEach(i=>{ if(i.cat===c&&i.sub===old) i.sub=n; }));
+      if(filter===c&&filterSub===old) filterSub=n;
+      saveSubs(); saveInv(); saveCart(); saveLog(); renderCatList(); render(); },{type:"text",value:old}); return; }
+  const rs=e.target.closest("[data-rs]");
+  if(rs){ const c=rs.dataset.of, sb=rs.dataset.rs; const m=inv.filter(i=>i.cat===c&&i.sub===sb).length;
+    ask(`¿Quitar "${sb}"?`, m?`Sus ${m===1?"1 cosa pasa":m+" cosas pasan"} a "${c}" sin subcategoría. No se borra nada.`:"La subcategoría está vacía.","Quitar",okd=>{ if(!okd) return;
+      SUBS[c]=subsOf(c).filter(x=>x!==sb); inv.forEach(i=>{ if(i.cat===c&&i.sub===sb) i.sub=""; });
+      if(filterSub===sb) filterSub="";
+      saveSubs(); saveInv(); renderCatList(); render(); }); return; }
   const eb=e.target.closest("[data-ec]");
   if(eb){ const old=eb.dataset.ec;
     ask("Cambiar nombre","","Guardar",(okd,val)=>{
@@ -553,7 +609,7 @@ $("settings").addEventListener("click",e=>{
   const n=inv.filter(i=>i.cat===c).length;
   ask(`¿Quitar "${c}"?`, n?`Tiene ${n===1?"1 cosa":n+" cosas"} en casa que también se borrarán. Tus gastos se quedan guardados.`:"La categoría está vacía.","Quitar",okd=>{
     if(!okd) return;
-    CATS=CATS.filter(x=>x!==c); saveCats();
+    CATS=CATS.filter(x=>x!==c); saveCats(); delete SUBS[c]; saveSubs();
     inv=inv.filter(i=>i.cat!==c); saveInv();
     if(filter===c) filter="Todas";
     fillCats(); renderCatList(); render();
@@ -614,6 +670,22 @@ document.querySelectorAll(".catsel").forEach(x=>x.addEventListener("change",()=>
     render();
   },{type:"text",placeholder:"Ej: Mascotas"});
 }));
+function fillSub(el,cat,val){
+  const list=subsOf(cat);
+  el.innerHTML=`<option value="">Sin subcategoría</option>`+list.map(x=>`<option>${esc(x)}</option>`).join("")+(cat?`<option value="__new">+ Nueva subcategoría</option>`:"");
+  el.value=(val&&list.includes(val))?val:"";
+}
+function syncSubs(){ [["sub","cat"],["csub","ccat"]].forEach(([s,c])=>fillSub($(s),$(c).value,$(s).value)); }
+document.querySelectorAll(".subsel").forEach(el=>el.addEventListener("change",()=>{
+  if(el.value!=="__new") return;
+  const cat=$(el.dataset.for).value;
+  ask("Nueva subcategoría","Dentro de "+cat,"Crear",(okd,val)=>{
+    const n=okd?(val||"").trim():"";
+    if(n){ const l=subsOf(cat); const ex=l.find(x=>x.toLowerCase()===n.toLowerCase()); if(!ex){ SUBS[cat]=[...l,n]; saveSubs(); } fillSub(el,cat,ex||n); render(); fillSub(el,cat,ex||n); }
+    else fillSub(el,cat,"");
+  },{type:"text",placeholder:"Ej: Comida, Xbox"});
+}));
+["cat","ccat","ecat"].forEach(id=>$(id).addEventListener("change",()=>{ const v=$(id).value; if(v!=="__new") fillSub($(id==="cat"?"sub":id==="ccat"?"csub":"esub"),v,""); }));
 function ensureCat(c){ if(c&&!CATS.includes(c)){ CATS.push(c); saveCats(); fillCats(); } }
 const allCats=()=>[...CATS,...inv.map(i=>i.cat).concat(cart.map(c=>c.cat)).filter((c,k,a)=>c&&!CATS.includes(c)&&a.indexOf(c)===k)];
 
@@ -639,11 +711,12 @@ $("f").addEventListener("submit",e=>{
   e.preventDefault();
   const name=$("name").value.trim(); if(!name) return;
   if(!CATS.includes($("cat").value)) return needCat($("cat"),$("f"));
-  const q=Math.max(0,parseInt($("iqty").value)||0);
-  const ex=inv.find(i=>norm(i.name)===norm(name)&&i.cat===$("cat").value);
-  if(ex){ ex.qty+=q; lastId=ex.id; bumpId=ex.id; }
-  else { const it={id:newId(),name,cat:$("cat").value,qty:q}; inv.unshift(it); lastId=it.id; }
-  $("name").value=""; $("iqty").value=""; $("name").focus();
+  const q=Math.max(0,readQ($("iqty"))||0), unit=$("iunit").value;
+  const sub=$("sub").value==="__new"?"":$("sub").value;
+  const ex=inv.find(i=>norm(i.name)===norm(name)&&i.cat===$("cat").value&&(i.sub||"")===sub);
+  if(ex){ ex.qty=r3(ex.qty+q); lastId=ex.id; bumpId=ex.id; }
+  else { const it={id:newId(),name,cat:$("cat").value,sub,qty:q,unit}; inv.unshift(it); lastId=it.id; }
+  $("name").value=""; $("iqty").value=""; $("iunit").value="u"; $("name").focus();
   saveInv(); render();
 });
 $("sort").value=prefs.sort;
@@ -668,19 +741,29 @@ function renderInv(){
   $("hint").textContent=inv.length?(manual?"Usa − cuando ocupes algo. Mantén presionado para editar, arrastra los puntitos para mover.":"Usa − cuando ocupes algo. Mantén presionado para editar."):"";
   const out=inv.filter(i=>i.qty<=0).length;
   $("isum").innerHTML=inv.length?`<span><b>${inv.length}</b> cosas en casa</span>${out?`<span>, <b>${out}</b> ${out===1?"se acabó":"se acabaron"}</span>`:""}`:"";
-  const shown=inv.filter(i=>filter==="Todas"||i.cat===filter);
+  const fsubs=filter==="Todas"?[]:[...subsOf(filter),...inv.filter(i=>i.cat===filter&&i.sub&&!subsOf(filter).includes(i.sub)).map(i=>i.sub)].filter((x,k,a)=>a.indexOf(x)===k);
+  if(filterSub&&!fsubs.includes(filterSub)) filterSub="";
+  $("subchips").hidden=!fsubs.length;
+  $("subchips").innerHTML=fsubs.length?["",...fsubs].map(x=>`<button class="chip" type="button" aria-pressed="${x===filterSub}" data-sc="${esc(x)}">${x?esc(x):"Todo "+esc(filter)}</button>`).join(""):"";
+  const shown=inv.filter(i=>(filter==="Todas"||i.cat===filter)&&(!filterSub||i.sub===filterSub));
   [...$("gview").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.gv===prefs.group));
   if(!inv.length){ $("inv").innerHTML=`<div class="empty">Anota lo que tienes en casa<br>y cuántos hay de cada cosa.</div>`; return; }
-  if(!shown.length){ $("inv").innerHTML=`<div class="empty">No hay nada en ${esc(filter)} todavía.<br>Agrégalo arriba.</div>`; return; }
+  if(!shown.length){ $("inv").innerHTML=`<div class="empty">No hay nada en ${esc(filterSub||filter)} todavía.<br>Agrégalo arriba.</div>`; return; }
   const together=prefs.group==="all";
   const groups=together?[{c:"Todo",g:sorted(shown)}]:cats.filter(c=>shown.some(i=>i.cat===c)).map(c=>({c,g:sorted(shown.filter(i=>i.cat===c))}));
-  $("inv").innerHTML=groups.map(({c,g})=>{
-    return `<div class="group">${together?"":`<div class="ghead"><span>${esc(c)}</span><span>${g.length}</span></div>`}<ul>`+g.map(i=>`
+  const row=i=>`
       <li class="${i.qty<=0?"zero":""} ${i.id===lastId?"just":""}" data-id="${i.id}">
         ${manual?`<button class="handle" type="button" aria-label="Mover ${esc(i.name)}">${ICON.grip}</button>`:""}
-        <div class="txt"><strong>${esc(i.name)}</strong>${together?`<span class="catlbl">${esc(i.cat)}</span>`:""}${i.qty<=0?`<span class="tag">Se acabó</span>`:""}</div>
-        <div class="qty"><button type="button" data-im="${i.id}" aria-label="Ocupé uno de ${esc(i.name)}">−</button><span class="${i.id===bumpId?"bump":""}">${i.qty}</span><button type="button" data-ip="${i.id}" aria-label="Agregar uno de ${esc(i.name)}">+</button></div>
-      </li>`).join("")+`</ul></div>`;
+        <div class="txt"><strong>${esc(i.name)}</strong>${together?`<span class="catlbl">${catTxt(i)}</span>`:""}${i.qty<=0?`<span class="tag">Se acabó</span>`:""}</div>
+        <div class="qty"><button type="button" data-im="${i.id}" aria-label="Ocupé ${esc(i.name)}">−</button><span class="${i.id===bumpId?"bump":""}">${fmtQ(i)}</span><button type="button" data-ip="${i.id}" aria-label="Agregar uno de ${esc(i.name)}">+</button></div>
+      </li>`;
+  $("inv").innerHTML=groups.map(({c,g})=>{
+    if(together) return `<div class="group"><ul>${g.map(row).join("")}</ul></div>`;
+    const keys=["",...subsOf(c),...g.map(i=>i.sub||"").filter(x=>x&&!subsOf(c).includes(x))].filter((x,k,a)=>a.indexOf(x)===k);
+    return `<div class="group"><div class="ghead"><span>${esc(c)}</span><span>${g.length}</span></div>`+keys.map(k=>{
+      const sg=g.filter(i=>(i.sub||"")===k); if(!sg.length) return "";
+      return (k?`<div class="subhead">${esc(k)}</div>`:"")+`<ul>${sg.map(row).join("")}</ul>`;
+    }).join("")+`</div>`;
   }).join("");
 }
 
@@ -692,34 +775,36 @@ $("cname").addEventListener("change",()=>{
   const i=same||inv.find(x=>norm(x.name)===k);
   const c=(i&&i.cat)||(h&&h.cat); if(c&&!same){ ensureCat(c); $("ccat").value=c; }
   if(h&&h.price&&!$("cprice").value) $("cprice").value=h.price;
+  if(i){ fillSub($("csub"),$("ccat").value,i.sub||""); }
+  const u=(i&&i.unit)||(h&&h.unit); if(u&&UNIT[u]){ $("cunit").value=u; $("cprice").placeholder=UNIT[u].ph; }
 });
+$("cunit").addEventListener("change",()=>{ $("cprice").placeholder=UNIT[$("cunit").value].ph; });
 $("cf").addEventListener("submit",e=>{
   e.preventDefault();
   const name=$("cname").value.trim(); if(!name) return;
   if(!CATS.includes($("ccat").value)) return needCat($("ccat"),$("cf"));
-  addCart({name,cat:$("ccat").value,price:prefs.priceMode==="item"?(parseFloat($("cprice").value)||0):0,qty:Math.max(1,parseInt($("cqty").value)||1)});
-  $("cname").value=""; $("cprice").value=""; $("cqty").value=1; $("cname").focus();
+  addCart({name,cat:$("ccat").value,price:prefs.priceMode==="item"?(parseFloat($("cprice").value)||0):0,qty:Math.max(0.001,readQ($("cqty"))||1),unit:$("cunit").value,sub:$("csub").value==="__new"?"":$("csub").value});
+  $("cname").value=""; $("cprice").value=""; $("cqty").value=1; $("cunit").value="u"; $("cprice").placeholder=UNIT.u.ph; $("cname").focus();
   render();
 });
 function addCart(o){
-  const ex=cart.find(c=>norm(c.name)===norm(o.name)&&c.cat===o.cat&&(prefs.priceMode==="total"||c.price===o.price));
-  if(ex){ ex.qty+=o.qty; lastId=ex.id; } else { const c=Object.assign({id:newId()},o); cart.push(c); lastId=c.id; }
+  const ex=cart.find(c=>norm(c.name)===norm(o.name)&&c.cat===o.cat&&(c.sub||"")===(o.sub||"")&&un(c)===un(o)&&(prefs.priceMode==="total"||c.price===o.price));
+  if(ex){ ex.qty=r3(ex.qty+o.qty); lastId=ex.id; } else { const c=Object.assign({id:newId()},o); cart.push(c); lastId=c.id; }
   saveCart();
 }
 function addFromInv(id){
   const i=inv.find(x=>x.id===id); if(!i) return;
   const h=hist[norm(i.name)]||{};
-  addCart({name:i.name,cat:i.cat,price:prefs.priceMode==="item"?(h.price||0):0,qty:1});
+  addCart({name:i.name,cat:i.cat,price:prefs.priceMode==="item"?(h.price||0):0,qty:1,unit:un(i),sub:i.sub||""});
 }
 function renderCart(){
   const itemMode=prefs.priceMode==="item";
   [...$("pmode").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.pm===prefs.priceMode));
   $("cprice").hidden=!itemMode;
-  $("cpq").style.gridTemplateColumns=itemMode?"1fr 4.8em auto":"1fr auto";
   $("cqty").placeholder="Cant.";
   setNum($("ctotal"),itemMode?cart.reduce((a,c)=>a+c.price*c.qty,0):0);
   $("ctlbl").textContent=itemMode?"Total de esta compra":"El total lo pones al terminar";
-  const n=cart.reduce((a,c)=>a+c.qty,0);
+  const n=cart.reduce((a,c)=>a+(un(c)==="u"?c.qty:1),0);
   $("ccount").textContent=n===1?"1 artículo":n+" artículos";
   $("invnames").innerHTML=inv.map(i=>`<option value="${esc(i.name)}">`).join("");
   const outs=inv.filter(i=>i.qty<=0&&!cart.some(c=>norm(c.name)===norm(i.name)&&c.cat===i.cat));
@@ -727,8 +812,8 @@ function renderCart(){
   $("flchips").innerHTML=outs.map(i=>`<button class="sugchip" type="button" data-ia="${i.id}"><b>+</b> ${esc(i.name)} <span style="color:var(--soft)">(${esc(i.cat)})</span></button>`).join("");
   $("cart").innerHTML=cart.length?`<div class="group"><ul>`+cart.map(c=>`
     <li data-cid="${c.id}" class="${c.id===lastId?"just":""}">
-      <div class="txt"><strong>${esc(c.name)}</strong><small>${esc(c.cat)}${itemMode&&c.price?", "+fmt(c.price)+" c/u":""}</small></div>
-      <div class="qty"><button type="button" data-cm="${c.id}" aria-label="Quitar uno">−</button><span>${c.qty}</span><button type="button" data-cp="${c.id}" aria-label="Agregar uno">+</button></div>
+      <div class="txt"><strong>${esc(c.name)}</strong><small>${catTxt(c)}${itemMode&&c.price?", "+fmt(c.price)+" "+UNIT[un(c)].per:""}</small></div>
+      <div class="qty"><button type="button" data-cm="${c.id}" aria-label="Quitar">−</button><span>${fmtQ(c)}</span><button type="button" data-cp="${c.id}" aria-label="Agregar uno">+</button></div>
       ${itemMode?`<span class="money">${fmt(c.price*c.qty)}</span>`:""}
       <button class="del" type="button" data-cd="${c.id}" aria-label="Quitar ${esc(c.name)}">${ICON.x}</button>
     </li>`).join("")+`</ul></div><p class="hint">Al terminar, todo esto se suma a lo que tienes en casa.</p>`
@@ -744,7 +829,7 @@ function renderCart(){
     <div class="daybody"><div>`+(prefs.group==="all"?[null]:cats).map(c=>`${c?`<div class="hcat">${esc(c)}</div>`:""}<ul>`+sorted(c?inv.filter(i=>i.cat===c):inv).map(i=>`
       <li class="homeli ${i.qty<=0?"zero":""}" data-ia="${i.id}">
         <div class="txt"><strong>${esc(i.name)}</strong>${c?"":`<span class="catlbl">${esc(i.cat)}</span>`}</div>
-        <span class="n">${i.qty<=0?"Se acabó":"Hay "+i.qty}</span>
+        <span class="n">${i.qty<=0?"Se acabó":"Hay "+fmtQ(i)}</span>
         <span class="plus" aria-hidden="true">+</span>
       </li>`).join("")+`</ul>`).join("")+`</div></div></div>`;
 }
@@ -753,11 +838,11 @@ function finishCart(total){
   const tq=cart.reduce((a,c)=>a+c.qty,0)||1;
   cart.forEach(c=>{
     const price=itemMode?c.price*c.qty:(total?total*c.qty/tq:0);
-    log.push({id:"c"+c.id,name:c.name,cat:c.cat,price,qty:c.qty,at,est:!itemMode&&!!total});
-    remember(c.name,c.cat,itemMode?c.price:0);
-    const i=inv.find(x=>norm(x.name)===norm(c.name)&&x.cat===c.cat);
-    if(i){ i.qty=Math.max(0,i.qty)+c.qty; }
-    else inv.push({id:newId(),name:c.name,cat:c.cat,qty:c.qty});
+    log.push({id:"c"+c.id,name:c.name,cat:c.cat,sub:c.sub||"",price,qty:c.qty,unit:un(c),at,est:!itemMode&&!!total});
+    remember(c.name,c.cat,itemMode?c.price:0); hist[norm(c.name)].unit=un(c);
+    const i=inv.find(x=>norm(x.name)===norm(c.name)&&x.cat===c.cat&&(x.sub||"")===(c.sub||""))||inv.find(x=>norm(x.name)===norm(c.name)&&x.cat===c.cat);
+    if(i){ i.qty=r3(Math.max(0,i.qty)+c.qty); if(!i.unit) i.unit=un(c); }
+    else inv.push({id:newId(),name:c.name,cat:c.cat,sub:c.sub||"",qty:c.qty,unit:un(c)});
   });
   saveLog(); saveHist(); saveInv(); cart=[]; saveCart();
 }
@@ -788,7 +873,7 @@ function renderStats(){
   const nm=d=>cap(d.toLocaleDateString("es",{weekday:"long",day:"numeric",month:"long",...(d.getFullYear()!==yr?{year:"numeric"}:{})}));
   const g=Object.values(days);
   $("hist").innerHTML=g.length?g.map((x,k)=>{
-    const sum=x.list.reduce((a,l)=>a+l.price,0), n=x.list.reduce((a,l)=>a+(l.qty||1),0);
+    const sum=x.list.reduce((a,l)=>a+l.price,0), n=x.list.reduce((a,l)=>a+(un(l)==="u"?(l.qty||1):1),0);
     return `<div class="day ${openDays.has(x.k)?"open":""}" style="animation-delay:${Math.min(k,8)*50}ms">
       <button class="dayhead" type="button" data-day="${x.k}" aria-expanded="${openDays.has(x.k)}">
         <div class="dt"><b>${esc(nm(x.d))}</b><small>${n===1?"1 producto":n+" productos"}</small></div>
@@ -796,7 +881,7 @@ function renderStats(){
       </button>
       <div class="daybody"><div><ul>`+x.list.map((l,j)=>`
         <li style="transition-delay:${j*35}ms">
-          <div class="txt"><strong>${esc(l.name)}${l.qty>1?" ×"+l.qty:""}</strong><small>${esc(l.cat)}, ${new Date(l.at).toLocaleTimeString("es",{hour:"numeric",minute:"2-digit"})}</small></div>
+          <div class="txt"><strong>${esc(l.name)}${un(l)==="u"?(l.qty>1?" ×"+numQ(l.qty):""):" "+fmtQ(l)}</strong><small>${catTxt(l)}, ${new Date(l.at).toLocaleTimeString("es",{hour:"numeric",minute:"2-digit"})}</small></div>
           <span class="money">${l.price?(l.est?"≈ ":"")+fmt(l.price):"sin precio"}</span>
           <button class="del" type="button" data-ld="${esc(l.id)}" data-at="${l.at}" aria-label="Quitar ${esc(l.name)} de los gastos">${ICON.x}</button>
         </li>`).join("")+`</ul></div></div></div>`;
@@ -804,7 +889,7 @@ function renderStats(){
 }
 
 /* ---------- Pintar ---------- */
-function render(){ renderInv(); renderCart(); renderStats(); lastId=null; bumpId=null; }
+function render(){ syncSubs(); renderInv(); renderCart(); renderStats(); lastId=null; bumpId=null; }
 
 /* ---------- Toques ---------- */
 let suppressClick=false;
@@ -817,15 +902,16 @@ document.addEventListener("click",e=>{
   if(suppressClick){ suppressClick=false; return; }
   const dh=e.target.closest("[data-day]"); if(dh){ toggleCard(dh,openDays,dh.dataset.day); return; }
   const hh=e.target.closest("[data-home]"); if(hh){ toggleCard(hh,null); return; }
-  const t=e.target.closest("[data-im],[data-ip],[data-c],[data-p],[data-ia],[data-cm],[data-cp],[data-cd],[data-ld],#finish,#cclear");
+  const t=e.target.closest("[data-im],[data-ip],[data-c],[data-sc],[data-p],[data-ia],[data-cm],[data-cp],[data-cd],[data-ld],#finish,#cclear");
   if(!t) return;
-  if(t.dataset.im){ const i=inv.find(x=>x.id===t.dataset.im); if(i&&i.qty>0){ i.qty--; bumpId=i.id; } saveInv(); }
-  else if(t.dataset.ip){ const i=inv.find(x=>x.id===t.dataset.ip); if(i){ i.qty=Math.max(0,i.qty)+1; bumpId=i.id; } saveInv(); }
-  else if(t.dataset.c){ filter=t.dataset.c; if(filter!=="Todas") $("cat").value=filter; }
+  if(t.dataset.im){ const i=inv.find(x=>x.id===t.dataset.im); if(i&&i.qty>0){ i.qty=Math.max(0,r3(i.qty-UNIT[un(i)].step)); bumpId=i.id; } saveInv(); }
+  else if(t.dataset.ip){ const i=inv.find(x=>x.id===t.dataset.ip); if(i){ i.qty=r3(Math.max(0,i.qty)+UNIT[un(i)].step); bumpId=i.id; } saveInv(); }
+  else if(t.dataset.c){ filter=t.dataset.c; filterSub=""; if(filter!=="Todas"){ $("cat").value=filter; fillSub($("sub"),filter,""); } }
+  else if(t.dataset.sc!==undefined){ filterSub=t.dataset.sc; if(filterSub) $("sub").value=filterSub; }
   else if(t.dataset.p){ prefs.period=t.dataset.p; savePrefs(); }
   else if(t.dataset.ia) addFromInv(t.dataset.ia);
-  else if(t.dataset.cp){ const c=cart.find(c=>c.id===t.dataset.cp); c.qty++; saveCart(); }
-  else if(t.dataset.cm){ const c=cart.find(c=>c.id===t.dataset.cm); if(c.qty>1) c.qty--; else cart=cart.filter(x=>x!==c); saveCart(); }
+  else if(t.dataset.cp){ const c=cart.find(c=>c.id===t.dataset.cp); c.qty=r3(c.qty+UNIT[un(c)].step); saveCart(); }
+  else if(t.dataset.cm){ const c=cart.find(c=>c.id===t.dataset.cm); const st=UNIT[un(c)].step; if(c.qty>st) c.qty=r3(c.qty-st); else cart=cart.filter(x=>x!==c); saveCart(); }
   else if(t.dataset.cd){ cart=cart.filter(c=>c.id!==t.dataset.cd); saveCart(); }
   else if(t.dataset.ld){ const id=t.dataset.ld, at=+t.dataset.at;
     ask("¿Quitar de los gastos?","Ya no se contará en tus totales.","Quitar",okd=>{ if(!okd) return; log=log.filter(l=>!(l.id===id&&l.at===at)); saveLog(); render(); }); return; }
@@ -867,10 +953,12 @@ function openEdit(id,kind){
   editId=id;
   $("eh").textContent=kind==="cart"?"Editar en la compra":"Editar";
   $("epricel").hidden=!(kind==="cart"&&prefs.priceMode==="item");
-  $("eqty").min=kind==="cart"?1:0;
-  $("ename").value=it.name; $("eqty").value=it.qty; $("eprice").value=it.price||"";
+  $("eqty").min=0;
+  $("ename").value=it.name; $("eqty").value=it.qty; $("eunit").value=un(it); $("eprice").value=it.price||"";
   const opts=CATS.includes(it.cat)?CATS:[...CATS,it.cat];
   $("ecat").innerHTML=opts.map(c=>`<option>${esc(c)}</option>`).join(""); $("ecat").value=it.cat;
+  fillSub($("esub"),it.cat,it.sub||"");
+  if(it.sub&&$("esub").value!==it.sub){ $("esub").insertAdjacentHTML("afterbegin",`<option>${esc(it.sub)}</option>`); $("esub").value=it.sub; }
   $("sheet").hidden=false;
 }
 function closeEdit(){ $("sheet").hidden=true; editId=null; }
@@ -878,15 +966,23 @@ function saveEdit(){
   const list=editKind==="cart"?cart:inv;
   const it=list.find(i=>i.id===editId); if(!it) return closeEdit();
   const n=$("ename").value.trim(); if(n) it.name=n;
-  it.cat=$("ecat").value;
-  const q=parseInt($("eqty").value);
-  if(editKind==="cart"){ it.qty=Math.max(1,q||1); const v=parseFloat($("eprice").value); it.price=isNaN(v)?0:v; saveCart(); }
+  it.cat=$("ecat").value; it.sub=$("esub").value==="__new"?"":$("esub").value;
+  const q=readQ($("eqty")); it.unit=$("eunit").value;
+  if(editKind==="cart"){ it.qty=q>0?q:it.qty; const v=parseFloat($("eprice").value); it.price=isNaN(v)?0:v; saveCart(); }
   else { it.qty=Math.max(0,isNaN(q)?it.qty:q); saveInv(); }
   closeEdit(); render();
 }
 $("esave").onclick=saveEdit;
 $("ecancel").onclick=closeEdit;
-$("edel").onclick=()=>{ if(editKind==="cart"){ cart=cart.filter(i=>i.id!==editId); saveCart(); } else { inv=inv.filter(i=>i.id!==editId); saveInv(); } closeEdit(); render(); };
+$("edel").onclick=()=>{
+  const id=editId, kind=editKind;
+  const it=(kind==="cart"?cart:inv).find(i=>i.id===id); if(!it) return;
+  ask(`¿Borrar "${it.name}"?`, kind==="cart"?"Se quitará de esta compra.":"Se borrará de lo que hay en casa. Esto no se puede deshacer.","Borrar",okd=>{
+    if(!okd) return;
+    if(kind==="cart"){ cart=cart.filter(i=>i.id!==id); saveCart(); } else { inv=inv.filter(i=>i.id!==id); saveInv(); }
+    closeEdit(); render();
+  });
+};
 $("sheet").addEventListener("click",e=>{ if(e.target.id==="sheet") closeEdit(); });
 
 /* ---------- Arrastrar para mover ---------- */
@@ -899,15 +995,20 @@ document.addEventListener("pointerdown",e=>{
 });
 document.addEventListener("pointermove",e=>{
   if(!drag) return; e.preventDefault();
-  const sibs=[...drag.ul.querySelectorAll("li")];
+  const sibs=[...drag.ul.children].filter(x=>x.tagName==="LI");
   const i=sibs.indexOf(drag.li), prev=sibs[i-1], next=sibs[i+1];
   if(prev){ const r=prev.getBoundingClientRect(); if(e.clientY<r.top+r.height/2){ drag.ul.insertBefore(drag.li,prev); return; } }
   if(next){ const r=next.getBoundingClientRect(); if(e.clientY>r.top+r.height/2) drag.ul.insertBefore(next,drag.li); }
 },{passive:false});
 function endDrag(){
   if(!drag) return;
+  if(drag.ul.classList.contains("sublist")){
+    SUBS[drag.ul.dataset.cat]=[...drag.ul.children].filter(x=>x.dataset.sub!==undefined).map(li=>li.dataset.sub);
+    drag.li.classList.remove("dragging"); drag=null; suppressClick=true;
+    saveSubs(); renderCatList(); render(); return;
+  }
   if(drag.ul.id==="catlist"){
-    CATS=[...drag.ul.querySelectorAll("li[data-cat]")].map(li=>li.dataset.cat);
+    CATS=[...drag.ul.children].filter(x=>x.dataset.cat!==undefined).map(li=>li.dataset.cat);
     drag.li.classList.remove("dragging"); drag=null; suppressClick=true;
     saveCats(); fillCats(); renderCatList(); render(); return;
   }
