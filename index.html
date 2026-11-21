@@ -308,27 +308,28 @@ body.nosubs #esubl,body.nosubs .subsel,body.nosubs .sublist,body.nosubs .addsub,
 .tierhint{color:var(--ink);font-weight:500}
 .meta s{opacity:.75}
 .addlink{align-self:flex-start;min-height:44px;padding:0 2px;color:var(--accent);font-size:15px;font-weight:600}
-#etierbox .setlbl{margin-top:0}
+#etierbox .setlbl,#otierbox .setlbl{margin-top:0}
 .thead{font-size:13.5px;color:var(--soft);font-weight:500;margin-bottom:-2px}
 .trows{display:grid;gap:8px}
 
 /* ---------- Precio de la foto ---------- */
-.ocrimg{height:min(28vh,190px);border-radius:16px;overflow:hidden;background:var(--field);display:grid;place-items:center}
-.ocrimg img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+.ocrimg{position:relative;height:min(28vh,190px);border-radius:16px;overflow:hidden;background:var(--field)}
+.ocrimg img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}
 .panel p.ocrmsg{color:var(--ink);font-weight:500}
-.panel p.ocrname{color:var(--ink)}
 .bar.busy i{width:34%;animation:slide 1.15s ease-in-out infinite}
 @keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
 #ocrbar i{transition:width .2s ease}
-.ocropts{display:grid;gap:8px}
-.ocropts:empty{display:none}
-.ocropt{width:100%;min-height:64px;padding:10px 16px;border-radius:16px;background:var(--field);text-align:left;display:flex;flex-direction:column;justify-content:center;gap:3px;transition:transform .12s var(--ease)}
-.ocropt:active{transform:scale(.985)}
-.ocropt b{font-size:27px;line-height:1.05}
-.ocropt span{font-size:14.5px;color:var(--soft);overflow-wrap:anywhere}
-.ocropt.first{background:var(--tint)}
-.ocropt.first b{color:var(--accent)}
-.ocropt.first span{color:var(--ink)}
+/* Panel para revisar lo que se leyó */
+.ocrimg.small{height:min(22vh,150px)}
+#ocrform{gap:12px}
+.ophoto{display:flex;gap:22px;margin:-10px 0 -6px}
+.ochips{display:flex;flex-wrap:wrap;gap:8px;margin-top:-4px}
+.ochips:empty{display:none}
+.ochip{min-height:44px;max-width:100%;padding:0 14px;border-radius:22px;background:var(--tint);color:var(--ink);font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ochip b{font-weight:700;color:var(--accent)}
+/* "Guardar" queda siempre a la vista; su fondo tapa también el margen de abajo del panel */
+.obtns{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom,0px));z-index:1;background:var(--surface);padding-top:10px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));margin-bottom:calc(-16px - env(safe-area-inset-bottom,0px));box-shadow:0 -10px 12px -10px var(--surface)}
+.panel input.need{box-shadow:inset 0 0 0 2px var(--out)}
 #ocrbtns .btn{flex:1}
 #gby{margin-top:18px}
 .secwrap{display:flex;flex-direction:column;gap:8px}
@@ -447,6 +448,7 @@ body.nosubs #esubl,body.nosubs .subsel,body.nosubs .sublist,body.nosubs .addsub,
     </div>
   </form>
   <input type="file" id="camin" accept="image/*" capture="environment" hidden>
+  <input type="file" id="galin" accept="image/*" hidden>
   <datalist id="invnames"></datalist>
 
   <nav class="tabs" id="tabs" role="tablist">
@@ -576,18 +578,44 @@ body.nosubs #esubl,body.nosubs .subsel,body.nosubs .sublist,body.nosubs .addsub,
 <div class="sheet" id="ocrsheet" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="oh">
     <div class="ph"><h2 id="oh">Precio de la foto</h2><button type="button" class="icb" id="ocrclose" aria-label="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-    <div class="ocrimg"><img id="ocrimg" alt="Foto de la etiqueta"></div>
+    <div class="ocrimg" id="ocrpic"><img id="ocrimg" alt="Foto de la etiqueta"></div>
     <div class="secwrap" id="ocrwait">
       <p id="ocrmsg" class="ocrmsg"></p>
       <div class="bar" id="ocrbar"><i></i></div>
       <p class="hint" id="ocrnote" hidden></p>
     </div>
-    <p class="ocrname" id="ocrname" hidden></p>
     <p class="ocrmsg" id="ocrerr" hidden></p>
-    <div class="ocropts" id="ocrres"></div>
-    <div class="prow" id="ocrbtns">
+    <div class="secwrap ocrform" id="ocrform" hidden>
+      <div class="ophoto"><button type="button" class="addlink" id="oagain">Otra foto</button><button type="button" class="addlink" id="ogal" aria-label="Elegir una foto guardada">Galería</button></div>
+      <label>Nombre<input id="oname" type="text" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="¿Qué producto es?"></label>
+      <div class="ochips" id="onames"></div>
+      <div class="two">
+        <label id="opricel">Precio c/u<input id="oprice" type="text" inputmode="decimal" placeholder="Sin precio" autocomplete="off" enterkeyhint="done"></label>
+        <label>Cantidad<input id="oqty" class="num" type="text" inputmode="decimal" placeholder="1" autocomplete="off" enterkeyhint="done"></label>
+      </div>
+      <div class="ochips" id="oprices"></div>
+      <div class="secwrap">
+        <button type="button" class="addlink" id="otieradd">+ Precio por cantidad</button>
+        <div class="secwrap" id="otierbox" hidden>
+          <div class="setlbl">Precio por cantidad</div>
+          <div class="two thead" aria-hidden="true"><span>Llevando desde</span><span id="otierpl">Precio c/u</span></div>
+          <div class="trows" id="otierrows"></div>
+          <p class="hint" id="otierhint" hidden></p>
+          <button type="button" class="addlink" id="otiermore">+ Otra cantidad</button>
+        </div>
+      </div>
+      <div class="two">
+        <label>Categoría<select id="ocat" class="catsel"></select></label>
+        <label>Unidad<select id="ounit"><option value="u">unid.</option><option value="kg">kg</option><option value="l">litros</option></select></label>
+      </div>
+      <label id="osubl" hidden>Subcategoría<select id="osub" class="subsel" data-for="ocat"></select></label>
+      <p class="hint" id="ostore" hidden></p>
+    </div>
+    <div class="prow obtns" id="ocrbtns">
       <button type="button" class="btn soft" id="ocragain">Otra foto</button>
+      <button type="button" class="btn soft" id="ocrgal" aria-label="Elegir una foto guardada">Galería</button>
       <button type="button" class="btn primary" id="ocrretry" hidden>Probar de nuevo</button>
+      <button type="button" class="btn primary" id="ocrsave" hidden>Guardar</button>
     </div>
   </div>
 </div>
@@ -647,6 +675,16 @@ const openDays=new Set();
 
 let _book=null;
 const saveStores=()=>store(STKEY,STORES);
+/* Precios anotados en cada súper (clave nueva): se guardan apenas los pones, sin esperar a terminar la compra. */
+const PKEY="lista-casa-prices-v1";
+let NOTED=load(PKEY,{}); if(!NOTED||typeof NOTED!=="object"||Array.isArray(NOTED)) NOTED={};
+const saveNoted=()=>{ _book=null; store(PKEY,NOTED); };
+function notePrice(name,shop,p,unit,tiers){
+  const k=norm(name); if(!k||!shop||!(p>0)) return false;
+  const T=(tiers||[]).filter(t=>t&&t.min>0&&t.p>0).map(t=>({min:t.min,p:t.p}));
+  (NOTED[k]||(NOTED[k]={}))[shop]={p:r2(p),unit:UNIT[unit]?unit:"u",at:Date.now(),...(T.length?{tiers:T}:{})};
+  saveNoted(); return true;
+}
 const saveInv=()=>store(INVKEY,inv), saveCats=()=>store(CKEY,CATS), saveSubs=()=>store(SUBKEY,SUBS), saveHist=()=>store(HKEY,hist), saveLog=()=>{ _book=null; store(LKEY,log); }, savePrefs=()=>store(SKEY,prefs), saveCart=()=>store(CARTKEY,cart);
 const subsOf=c=>Array.isArray(SUBS[c])?SUBS[c]:[];
 const subOn=()=>prefs.subs===true;
@@ -771,7 +809,7 @@ let downloadsApi=null;
 const inClaude=!!(window.claude&&typeof window.claude.use==="function");
 if(inClaude){ window.claude.use("downloads").then(d=>{ downloadsApi=d; if(bkMode==="save") $("bkalt").hidden=!d; }).catch(()=>{}); }
 const stamp=()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
-function backupText(){ return JSON.stringify({app:"lista-casa",version:1,fecha:new Date().toISOString(),inv,cats:CATS,subs:SUBS,stores:STORES,cart,log,hist,prefs}); }
+function backupText(){ return JSON.stringify({app:"lista-casa",version:1,fecha:new Date().toISOString(),inv,cats:CATS,subs:SUBS,stores:STORES,prices:NOTED,cart,log,hist,prefs}); }
 function bkInfo(){ $("bkinfo").textContent=prefs.lastBackup?"Último respaldo: "+new Date(prefs.lastBackup).toLocaleDateString("es",{day:"numeric",month:"long",year:"numeric"}):"Todavía no has hecho un respaldo."; }
 let bkMode="";
 function openBk(mode){
@@ -828,10 +866,11 @@ $("bkyes").onclick=async()=>{
     if(!okd) return;
     inv=d.inv; CATS=Array.isArray(d.cats)?d.cats:CATS; SUBS=d.subs&&typeof d.subs==="object"&&!Array.isArray(d.subs)?d.subs:{}; STORES=Array.isArray(d.stores)?d.stores:[]; cart=Array.isArray(d.cart)?d.cart:[];
     log=Array.isArray(d.log)?d.log:[]; hist=d.hist&&typeof d.hist==="object"?d.hist:{};
+    NOTED=d.prices&&typeof d.prices==="object"&&!Array.isArray(d.prices)?d.prices:{};   /* los respaldos antiguos no traen precios anotados */
     if(d.prefs&&typeof d.prefs==="object"){ const keepTheme=prefs.theme; prefs=Object.assign(prefs,d.prefs); prefs.theme=d.prefs.theme||keepTheme; }
     if(!["casa","compra","gastos"].includes(prefs.tab)) prefs.tab="casa";
     if(!["manual","name","qasc"].includes(prefs.sort)) prefs.sort="manual";
-    saveInv(); saveCats(); saveSubs(); saveStores(); saveCart(); saveLog(); saveHist(); savePrefs();
+    saveInv(); saveCats(); saveSubs(); saveStores(); saveNoted(); saveCart(); saveLog(); saveHist(); savePrefs();
     filter="Todas"; filterSub=""; fillCats(); applyTheme(); renderCatList(); bkInfo();
     hideSheet("bk"); showTab(); render(); toast("Respaldo restaurado");
   });
@@ -868,6 +907,9 @@ function book(){
   log.forEach(l=>{ if(!l.store||l.est||!(l.price>0)) return;
     const k=norm(l.name), q=l.qty>0?l.qty:1, m=b[k]||(b[k]={}), cur=m[l.store];
     if(!cur||l.at>=cur.at) m[l.store]={shop:l.store,p:l.pu>0?l.pu:l.price/q,at:l.at,unit:un(l),...(tierOn(l)?{tiers:tcopy(l)}:{})}; });
+  Object.keys(NOTED).forEach(k=>Object.entries(NOTED[k]||{}).forEach(([shop,e])=>{ if(!e||!(e.p>0)) return;
+    const m=b[k]||(b[k]={}), cur=m[shop];
+    if(!cur||(e.at||0)>=cur.at) m[shop]={shop,p:e.p,at:e.at||0,unit:UNIT[e.unit]?e.unit:"u",...(tierOn(e)?{tiers:tcopy(e)}:{})}; }));
   return (_book=b);
 }
 const allStores=()=>[...STORES,...log.map(l=>l.store).filter((s,k,a)=>s&&!STORES.includes(s)&&a.indexOf(s)===k)];
@@ -904,13 +946,14 @@ function renderStoreList(){
     return `<li data-store="${esc(s)}"><div class="crow"><strong>${esc(s)}</strong><span class="n">${n===1?"1 precio":n+" precios"}</span>
       <button class="del pen" type="button" data-est="${esc(s)}" aria-label="Cambiar nombre de ${esc(s)}">${ICON.pen}</button>
       <button class="del" type="button" data-rst="${esc(s)}" aria-label="Quitar ${esc(s)}">${ICON.x}</button></div></li>`; }).join("");
-  $("storehint").textContent=list.length?"Cada precio queda guardado en el súper donde compraste.":"Todavía no tienes supermercados. También puedes crearlos desde Compra.";
+  $("storehint").textContent=list.length?"Cada precio queda guardado en el súper donde lo anotaste.":"Todavía no tienes supermercados. También puedes crearlos desde Compra.";
 }
 function renameStore(oldN,newN){
   STORES=allStores().map(s=>s===oldN?newN:s);
   log.forEach(l=>{ if(l.store===oldN) l.store=newN; });
+  Object.values(NOTED).forEach(m=>{ if(m&&m[oldN]){ m[newN]=m[oldN]; delete m[oldN]; } });
   if(prefs.store===oldN) prefs.store=newN;
-  saveStores(); saveLog(); savePrefs(); renderStoreList(); render();
+  saveStores(); saveLog(); saveNoted(); savePrefs(); renderStoreList(); render();
 }
 $("storesw").addEventListener("click",()=>{ prefs.storesOn=!storeOn(); savePrefs(); renderStoreList(); render(); });
 $("addstore").onclick=()=>newStore(name=>{ if(name){ renderStoreList(); render(); } });
@@ -939,8 +982,9 @@ $("settings").addEventListener("click",e=>{
   if(rst){ const s=rst.dataset.rst, n=Object.values(book()).filter(m=>m[s]).length;
     ask(`¿Quitar "${s}"?`, n?`Se borran sus ${n===1?"1 precio guardado":n+" precios guardados"}. Tus gastos se quedan.`:"Todavía no tiene precios guardados.","Quitar",okd=>{ if(!okd) return;
       STORES=allStores().filter(x=>x!==s); log.forEach(l=>{ if(l.store===s) delete l.store; });
+      Object.values(NOTED).forEach(m=>{ if(m) delete m[s]; });
       if(prefs.store===s) prefs.store="";
-      saveStores(); saveLog(); savePrefs(); renderStoreList(); render(); }); return; }
+      saveStores(); saveLog(); saveNoted(); savePrefs(); renderStoreList(); render(); }); return; }
   const as=e.target.closest("[data-as]");
   if(as){ const c=as.dataset.as;
     ask("Nueva subcategoría","Dentro de "+c,"Crear",(okd,val)=>{ const n=okd?(val||"").trim():""; if(!n) return;
@@ -1032,7 +1076,7 @@ function fillSub(el,cat,val){
   el.innerHTML=`<option value="">Sin subcategoría</option>`+list.map(x=>`<option>${esc(x)}</option>`).join("")+(cat?`<option value="__new">+ Nueva subcategoría</option>`:"");
   el.value=(val&&list.includes(val))?val:"";
 }
-function syncSubs(){ [["sub","cat"],["csub","ccat"]].forEach(([s,c])=>fillSub($(s),$(c).value,$(s).value)); }
+function syncSubs(){ [["sub","cat"],["csub","ccat"],["osub","ocat"]].forEach(([s,c])=>fillSub($(s),$(c).value,$(s).value)); }
 document.querySelectorAll(".subsel").forEach(el=>el.addEventListener("change",()=>{
   if(el.value!=="__new") return;
   const cat=$(el.dataset.for).value;
@@ -1042,7 +1086,7 @@ document.querySelectorAll(".subsel").forEach(el=>el.addEventListener("change",()
     else fillSub(el,cat,"");
   },{type:"text",placeholder:"Ej: Comida, Xbox"});
 }));
-["cat","ccat","ecat"].forEach(id=>$(id).addEventListener("change",()=>{ const v=$(id).value; if(v!=="__new") fillSub($(id==="cat"?"sub":id==="ccat"?"csub":"esub"),v,""); }));
+Object.entries({cat:"sub",ccat:"csub",ecat:"esub",ocat:"osub"}).forEach(([id,sid])=>$(id).addEventListener("change",()=>{ const v=$(id).value; if(v!=="__new") fillSub($(sid),v,""); }));
 function ensureCat(c){ if(c&&!CATS.includes(c)){ CATS.push(c); saveCats(); fillCats(); } }
 const allCats=()=>[...CATS,...inv.map(i=>i.cat).concat(cart.map(c=>c.cat)).filter((c,k,a)=>c&&!CATS.includes(c)&&a.indexOf(c)===k)];
 
@@ -1089,7 +1133,8 @@ function needCat(sel,form){
     const n=okd?(val||"").trim():""; if(!n) return;
     const ex=CATS.find(c=>c.toLowerCase()===n.toLowerCase());
     if(!ex){ CATS.push(n); saveCats(); }
-    fillCats(ex||n,sel); render(); form.requestSubmit?form.requestSubmit():form.dispatchEvent(new Event("submit",{cancelable:true}));
+    fillCats(ex||n,sel); render();
+    if(typeof form==="function") form(); else form.requestSubmit?form.requestSubmit():form.dispatchEvent(new Event("submit",{cancelable:true}));
   },{type:"text",placeholder:"Nombre de la categoría"});
 }
 function reveal(view){
@@ -1201,6 +1246,7 @@ $("cf").addEventListener("submit",e=>{
   if(!CATS.includes($("ccat").value)) return needCat($("ccat"),$("cf"));
   let q=$("cqty").value.trim()===""?1:readQ($("cqty")); if(isNaN(q)||q<=0) q=1;
   const item=prefs.priceMode==="item", tiers=item&&pendTiers?pendTiers:null;
+  if(item&&$("cprice").value.trim()&&$("cprice").value!==autoV) notePrice(name,curStore(),readP($("cprice")),$("cunit").value,tiers);
   addCart({name,cat:$("ccat").value,price:item?readP($("cprice")):0,qty:q,unit:$("cunit").value,sub:!subOn()||$("csub").value==="__new"?"":$("csub").value,...(tiers?{tiers}:{})});
   $("cname").value=""; $("cprice").value=""; $("cqty").value=""; $("cunit").value="u"; $("cprice").placeholder=ppOf("u"); pendTiers=null; autoV=null;
   render(); reveal("v-compra");
@@ -1363,24 +1409,26 @@ function readLabel(words,W,H){
   const RX=[new RegExp("(?:(?:ll|il|li|1l|l1)ev(?:ando|e|a|as)|comprando|[dpo]esde|a partir de)\\s+(\\d{1,2})(?![\\d.,/])(?!\\s*[x×]\\s*\\d)"+UN+"?(?:"+OM+")?","g"),
             new RegExp("(?:^|\\s)(\\d{1,2})"+UN+"?"+OM+"\\b","g"),
             new RegExp("(?:^|\\s)(\\d{1,3})\\s*(?:a|al|-)\\s*(\\d{1,3})(?:"+UN+"|(?=\\s*\\$))","g"),   /* "1 a 5 un.", "6 a 11 un." */
-            new RegExp("(?:^|\\s)(?:x|por)\\s*(\\d{1,2})"+UN,"g"),                                     /* "x 6 unidades" */
+            new RegExp("(?:^|\\s)(?:x{1,2}|por)\\s*(\\d{1,2})"+UN,"g"),                                  /* "x 6 unidades" (la x a veces sale "Xx") */
             new RegExp("(?:^|\\s)(\\d{1,2})0\\s*mas\\b","g")];                                          /* "120 más" = "12 o más" */
   const phr=[], deals=[], span=(L,a,b)=>L.ws.filter(w=>w.s<b&&w.e>a);
+  const bx=ws=>ws.length?{x0:Math.min(...ws.map(w=>w.x0)),y0:Math.min(...ws.map(w=>w.y0)),x1:Math.max(...ws.map(w=>w.x1)),y1:Math.max(...ws.map(w=>w.y1))}:null;
   lines.forEach(L=>{
     const taken=[], free=(a,b)=>!taken.some(([x,y])=>a<y&&b>x);
     /* "2 x $3.000", "4 por $2.190": el total por varios */
     const PK=/(?:^|\s)(\d{1,2})\s*(?:[x×]{1,2}|por)\s*\$?\s*(\d{1,3}(?:[.,]\d{3})+|\d{3,6})(?![\d.,]*\s*(?:g|gr|grs|kg|ml|cc|l|lt|cm|mm|un)\b)/g;
     for(let m;(m=PK.exec(L.txt));){ const n=+m[1], P=+m[2].replace(/[.,]/g,""); if(n<2||P<100) continue;
-      taken.push([m.index,m.index+m[0].length]); span(L,m.index,m.index+m[0].length).forEach(w=>used.add(w)); deals.push({min:n,p:Math.round(P/n*100)/100,pack:P}); }
+      const sw=span(L,m.index,m.index+m[0].length); taken.push([m.index,m.index+m[0].length]); sw.forEach(w=>used.add(w)); deals.push({min:n,p:Math.round(P/n*100)/100,pack:P,box:bx(sw)}); }
     /* "3x2", "2x1", "4x3": llevando 3 pagas 2, o sea cada uno sale a 2/3 del precio normal */
     const NM=/(?:^|\s)(\d)\s*[x×]\s*(\d)(?![\d.,]|\s*(?:l|lt|lts|kg|k|g|gr|grs|ml|cc|un|u)\b)/g;
     for(let m;(m=NM.exec(L.txt));){ if(+m[1]-+m[2]!==1||+m[1]>6||!free(m.index,m.index+m[0].length)) continue;
-      taken.push([m.index,m.index+m[0].length]); span(L,m.index,m.index+m[0].length).forEach(w=>used.add(w)); deals.push({min:+m[1],ratio:+m[2]/+m[1],nxm:m[1]+"x"+m[2]}); }
+      const sw=span(L,m.index,m.index+m[0].length); taken.push([m.index,m.index+m[0].length]); sw.forEach(w=>used.add(w)); deals.push({min:+m[1],ratio:+m[2]/+m[1],nxm:m[1]+"x"+m[2],box:bx(sw)}); }
+    const TX=L.txt.replace(/(^|\s)[li|](?=\s*(?:a|al|-)\s*\d)/g,(m,a)=>a+"1");   /* "la5un." es "1a5un." */
     RX.forEach((rx,i)=>{ rx.lastIndex=0;
-      for(let m;(m=rx.exec(L.txt));){ const a=m.index, b=a+m[0].length, n=+m[1];
+      for(let m;(m=rx.exec(TX));){ const a=m.index, b=a+m[0].length, n=+m[1];
         if(!free(a,b)||n<1||(i===2&&!(+m[2]>n)&&!/(?:un|und|unid|unidad(?:es)?|uds?|u)\.?$/.test(m[0]))) continue;
         const pw=span(L,a,b); if(!pw.length) continue; taken.push([a,b]);
-        phr.push({min:n,pw,ph:Math.max(8,...pw.map(w=>w.h)),P:{x0:Math.min(...pw.map(w=>w.x0)),y0:Math.min(...pw.map(w=>w.Y0)),x1:Math.max(...pw.map(w=>w.x1)),y1:Math.max(...pw.map(w=>w.Y1))}}); } });
+        phr.push({min:n,...(i===2?{max:+m[2]}:{}),pw,ph:Math.max(8,...pw.map(w=>w.h)),P:{x0:Math.min(...pw.map(w=>w.x0)),y0:Math.min(...pw.map(w=>w.Y0)),x1:Math.max(...pw.map(w=>w.x1)),y1:Math.max(...pw.map(w=>w.Y1))}}); } });
   });
   /* A cada frase le toca el precio más cercano (al lado o abajo); cada precio sirve para una sola frase. */
   const pairs=[];
@@ -1419,6 +1467,33 @@ function readLabel(words,W,H){
   lad.sort((a,b)=>a.min-b.min);
   if(lad.length>=2&&lad.every((x,i)=>!i||x.c.v<lad[i-1].c.v)) lad.forEach(x=>phr.push(x));
   const steps=phr.filter(f=>f.min>=2&&f.c), base=phr.filter(f=>f.min===1&&f.c).sort((a,b)=>b.c.s-a.c.s)[0];
+  /* Fila de la escalera con la cantidad mal leída ("Gun." por "6 un.", "Xx" por "x2"): si su precio está en la misma columna,
+     entre dos filas que sí se leyeron, la cantidad sale de lo que se alcanzó a leer o, si no cabe otra, de las filas vecinas. */
+  const cyOf=w=>(w.Y0+w.Y1)/2, conf=f=>Math.min(100,...(f.pw||[]).map(w=>w.c));
+  /* una fila por altura y una por cantidad (las dos pasadas leen lo mismo): queda la que se leyó con más seguridad */
+  let rungs=[...(base?[base]:[]),...steps].map(f=>({min:f.min,max:f.max,w:f.c.w,v:f.c.v,q:conf(f)})).sort((a,b)=>cyOf(a.w)-cyOf(b.w));
+  rungs=rungs.filter((r,i)=>!rungs.some((o,j)=>j!==i&&Math.abs(cyOf(o.w)-cyOf(r.w))<Math.max(o.w.h,r.w.h)*.5&&(o.q>r.q||(o.q===r.q&&j<i))));
+  const rm=new Set(); rungs=rungs.filter(r=>!rm.has(r.min)&&rm.add(r.min));
+  /* si una cantidad se leyó con poca seguridad o queda un precio de la escalera sin cantidad, conviene mirar de nuevo */
+  let weak=[...(base?[base]:[]),...steps].some(f=>conf(f)<50), holes=0;
+  if(rungs.length&&rungs.every((r,i)=>!i||(r.min>rungs[i-1].min&&r.v<rungs[i-1].v))){
+    const hm=rungs.map(r=>r.w.h).sort((a,b)=>a-b)[rungs.length>>1], DG={g:"6",b:"8",s:"5",z:"2",o:"0"};
+    cands.forEach(c=>{ const w=c.w; if(used.has(w)||gotW.has(w)||c.kind||c.plain||Math.abs(w.h-hm)>hm*.35||rungs.some(r=>r.v===c.v)) return;
+      const cy=cyOf(w), up=rungs.filter(r=>cyOf(r.w)<cy).pop(), dn=rungs.find(r=>cyOf(r.w)>cy);
+      if(!up||!(c.v<up.v&&(!dn||c.v>dn.v))||Math.min(Math.abs(w.x0-up.w.x0),Math.abs(w.x1-up.w.x1))>hm*1.5) return;
+      const step=rungs.length>1?(cyOf(rungs[rungs.length-1].w)-cyOf(rungs[0].w))/Math.max(1,rungs.length-1):hm*2;
+      if(cy-cyOf(up.w)>step*1.6||(dn&&cyOf(dn.w)-cy<hm*.6)) return;   /* una fila más abajo, no más */
+      const left=all.filter(u=>u!==w&&!gotW.has(u)&&row(u,w)&&u.x1<=w.x0+2&&w.x0-u.x1<hm*12).sort((a,b)=>a.x0-b.x0);
+      const ok=n=>n>up.min&&(!dn||n<dn.min);
+      /* "1" y "2" sueltos pero pegados son un "12" */
+      const lt=left.map((u,i)=>(i&&/^\d$/.test(u.t)&&/^\d$/.test(left[i-1].t)&&u.x0-left[i-1].x1<u.h*.6?"":" ")+fold(u.t)).join("");
+      let m=((lt.match(/\d{1,2}/g)||[]).map(Number).filter(ok))[0]||0;
+      if(!m&&up.max&&ok(up.max+1)) m=up.max+1;   /* "1 a 5 un." arriba: esta fila parte en 6 */
+      if(!m) left.forEach(u=>{ const t=/^(x?)([gbszo])(un\.?|und\.?|u\.?|\)|:)$/.exec(fold(u.t)); if(!m&&t&&ok(+DG[t[2]])) m=+DG[t[2]]; });
+      if(!m&&dn&&dn.min-up.min===2) m=up.min+1;
+      if(!m) holes++;
+      if(m&&!steps.some(f=>f.min===m)){ const f={min:m,pw:left,c}; phr.push(f); steps.push(f); gotW.add(w); rungs.push({min:m,w,v:c.v}); rungs.sort((a,b)=>cyOf(a.w)-cyOf(b.w)); } });
+  }
   steps.forEach(f=>used.add(f.c.w));
   /* El precio normal: el más grande y más al centro. Si la etiqueta dice "Desde 1 un" o "1 a 5 un", es ese. */
   const tv=new Set(steps.map(f=>f.c.v).concat(deals.map(d=>d.pack).filter(Boolean)));
@@ -1436,14 +1511,74 @@ function readLabel(words,W,H){
   /* Cada escalón tiene que ser más barato que el anterior. Si uno sale más caro con un número de más adelante, era el "$" mal leído. */
   const N=prices[0]||0, tiers=[];
   let last=N||Infinity;
-  steps.map(f=>{ const w=f.c.w; return {min:f.min,p:f.c.v,c:w.c,k:w.k,t:w.j?"":w.t,box:{x0:w.x0,y0:w.y0,x1:w.x1,y1:w.y1}}; })
+  const st=steps.map(f=>{ const w=f.c.w; return {min:f.min,p:f.c.v,q:conf(f),c:w.c,k:w.k,t:w.j?"":w.t,box:{x0:w.x0,y0:w.y0,x1:w.x1,y1:w.y1}}; });
+  st.filter(t=>!st.some(o=>o!==t&&o.p===t.p&&(o.q>t.q||(o.q===t.q&&o.min<t.min))))   /* "15 o más" mal leído y "12 o más" bien leído: queda el 12 */
     .concat(deals.map(d=>d.ratio?Object.assign(d,{p:N?Math.round(N*d.ratio*100)/100:0}):d))
     .filter(t=>t.p>0).sort((a,b)=>a.min-b.min||a.p-b.p)
     .forEach(t=>{ if(tiers.length&&tiers[tiers.length-1].min===t.min) return;
       if(t.p>=last&&!t.pack&&!t.ratio&&String(t.p).length>=4){ const alt=+String(t.p).slice(1); if(alt>=last*.5&&alt<last){ t.p=alt; t.c=99; } }
       if(t.p<last&&!(N&&t.p<N*.45)){ tiers.push(t); last=t.p; } });   /* más de 55% más barato: mal leído */
   const aw=main?main.w:null;
-  return {prices,regs,tiers,words,loose:phr.filter(f=>!f.c).length,main:main?{v:main.v,kind:main.kind,plain:main.plain,h:aw.h,c:aw.c,k:aw.k,t:aw.j?"":aw.t,box:{x0:aw.x0,y0:aw.y0,x1:aw.x1,y1:aw.y1}}:null,anchor:aw?{x:(aw.x0+aw.x1)/2,y:(aw.y0+aw.y1)/2,h:aw.h}:{x:W/2,y:H/2,h:H/10}};
+  /* Nombre del producto: la línea de letras más destacada arriba del precio, en la misma etiqueta,
+     más el tamaño si viene en la línea de abajo ("1 L", "400 G"). */
+  const STOP=/\b(precios?|ofertas?|socios?|regular|unitario|cantidad|ahorr\w*|antes|ahora|normal|desde|llevando|lleve|lleva|valid[oa]|hasta|dcto|descuento|ppum|pum|club|exclusiv\w*|online|internet|promo\w*|liquidacion|nuevo)\b|c\/u|unidad de medida/;
+  const SIZE=/^\d+(?:[.,]\d+)?\s*(?:kg|kgs|k|g|gr|grs|l|lt|lts|litros?|ml|cc|un|unid|unidades)\.?$/i;
+  const nl=[], qw=new Set(); phr.forEach(f=>f.pw.forEach(w=>qw.add(w)));
+  const qa=[...qw], ov=(a,b)=>{ const ix=Math.min(a.x1,b.x1)-Math.max(a.x0,b.x0), iy=Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0);
+    return ix>0&&iy>0&&ix*iy>.4*Math.min((a.x1-a.x0)*(a.y1-a.y0),(b.x1-b.x0)*(b.y1-b.y0)); };
+  const BANNER=/^(ofert\w*|nuev[oa]s?|promo\w*|precio|exclusiv\w*|imperdible|liquidacion)$/;
+  lines.forEach(L=>{ let ws=L.ws.filter(w=>w.t.trim()); if(!ws.length||ws.some(w=>qw.has(w)||qa.some(q=>ov(w,q)))) return;
+    while(ws.length>1&&BANNER.test(fold(ws[0].t).replace(/[^a-z]/g,""))) ws=ws.slice(1);
+    while(ws.length>1&&BANNER.test(fold(ws[ws.length-1].t).replace(/[^a-z]/g,""))) ws=ws.slice(0,-1);
+    const txt=ws.map(w=>w.t).join(" "), f=fold(txt), letters=(f.match(/[a-z]/g)||[]).length, total=f.replace(/\s/g,"").length;
+    const hasP=ws.some(w=>cands.some(c=>c.w===w&&!c.plain)), size=SIZE.test(txt.trim());
+    if(STOP.test(f)||hasP||(!size&&(letters<3||letters/total<.55))) return;
+    const hs=ws.map(w=>w.h).sort((a,b)=>a-b);
+    nl.push({txt,size,h:hs[hs.length>>1],c:ws.reduce((a,w)=>a+w.c,0)/ws.length,x0:Math.min(...ws.map(w=>w.x0)),x1:Math.max(...ws.map(w=>w.x1)),y0:Math.min(...ws.map(w=>w.Y0)),y1:Math.max(...ws.map(w=>w.Y1)),box:bx(ws)}); });
+  let name="", nbox=null, nh=0;
+  if(nl.length){
+    const mh=aw?aw.h:H*.08, lim=Math.max(mh*5,H*.35);
+    const ext=[aw,...[base,...steps].filter(f=>f&&f.c).flatMap(f=>[f.P,f.c.w,...(f.pw||[])])].filter(Boolean);
+    const ex0=ext.length?Math.min(...ext.map(b=>b.x0))-mh:0, ex1=ext.length?Math.max(...ext.map(b=>b.x1))+mh:W;
+    const near=x=>!aw||((x.y1<=aw.Y0+mh*.4)&&(aw.Y0-x.y1)<lim&&(Math.min(x.x1,aw.x1+mh*3)-Math.max(x.x0,aw.x0-mh*3)>0||Math.min(x.x1,ex1)-Math.max(x.x0,ex0)>0));
+    const pool=nl.filter(x=>!x.size&&near(x)).sort((a,b)=>(b.h*(b.c<45?.6:1))-(a.h*(a.c<45?.6:1))||a.y0-b.y0);
+    const top=pool[0];
+    if(top){
+      /* si hay otra línea parecida justo arriba, el nombre empieza ahí (nombres en dos líneas) */
+      let first=top; nl.forEach(x=>{ if(x!==top&&!x.size&&x.y1<=first.y0+first.h*.3&&first.y0-x.y1<first.h*1.2&&Math.abs(x.h-first.h)<first.h*.35&&Math.min(x.x1,first.x1)-Math.max(x.x0,first.x0)>0) first=x; });
+      /* a veces el lector parte la fila del nombre en dos pedazos ("ARROZ GRADO 1" y "TUCAPEL 1KG"): se juntan */
+      const row1=[first], same=(a,b)=>Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0)>Math.min(a.h,b.h)*.5;
+      for(let k=0;k<3;k++){ const a=row1[0], z=row1[row1.length-1];
+        const lf=nl.find(x=>!row1.includes(x)&&!x.size&&same(x,a)&&x.x1<=a.x0+a.h*.5&&a.x0-x.x1<a.h*1.2&&Math.abs(x.h-a.h)<Math.max(x.h,a.h)*.45);
+        const rt=nl.find(x=>!row1.includes(x)&&x!==lf&&same(x,z)&&x.x0>=z.x1-z.h*.5&&x.x0-z.x1<z.h*1.2&&(x.size||Math.abs(x.h-z.h)<Math.max(x.h,z.h)*.45));
+        if(lf) row1.unshift(lf); if(rt) row1.push(rt); if(!lf&&!rt) break; }
+      const head={txt:row1.map(x=>x.txt).join(" "),h:Math.max(...row1.map(x=>x.h)),x0:Math.min(...row1.map(x=>x.x0)),x1:Math.max(...row1.map(x=>x.x1)),y0:Math.min(...row1.map(x=>x.y0)),y1:Math.max(...row1.map(x=>x.y1))};
+      const parts=[head.txt], got=[...row1]; let cur=head;
+      for(let i=0;i<2;i++){ const nx=nl.filter(x=>!got.includes(x)&&x.y0>=cur.y1-cur.h*.3&&x.y0-cur.y1<cur.h*1.3&&Math.abs(x.x0-head.x0)<cur.h*3&&(x.size||Math.abs(x.h-cur.h)<cur.h*.35)).sort((a,b)=>a.y0-b.y0)[0];
+        if(!nx) break; parts.push(nx.txt); got.push(nx); cur=nx; if(nx.size) break; }
+      name=cleanName(parts.join(" ")); nbox=bx(got.map(x=>x.box)); nh=head.h;
+    }
+  }
+  /* Precio por kilo en la feria o la carnicería: "$1.490 kg" */
+  let unit="";
+  if(aw){ const L=aw.L, i=L?L.ws.indexOf(aw):-1, nx=i>=0?L.ws[i+1]:null; if(nx&&/^(kg|k|kilo|kilos|xkg)\.?$/.test(fold(nx.t))) unit="kg"; }
+  return {prices,regs,tiers,words,name,nbox,nh,unit,weak:weak||holes>0,loose:phr.filter(f=>!f.c).length,main:main?{v:main.v,kind:main.kind,plain:main.plain,h:aw.h,c:aw.c,k:aw.k,t:aw.j?"":aw.t,box:{x0:aw.x0,y0:aw.y0,x1:aw.x1,y1:aw.y1}}:null,anchor:aw?{x:(aw.x0+aw.x1)/2,y:(aw.y0+aw.y1)/2,h:aw.h}:{x:W/2,y:H/2,h:H/10}};
+}
+function cleanName(t){
+  let ws=String(t).replace(/[|_*#~<>«»"“”´`\\]+/g," ").replace(/\s+/g," ").trim().split(" ")
+    .map(w=>/[a-záéíóúñ]/i.test(w)&&/0/.test(w)&&!/\d{2}/.test(w)?w.replace(/0/g,"o"):w)   /* "C0LUN" */
+    .filter(w=>/[a-z0-9áéíóúñ]/i.test(w));
+  while(ws.length&&ws[0].length===1&&!/\d/.test(ws[0])) ws.shift();
+  while(ws.length>1&&ws[ws.length-1].length===1&&!/\d/.test(ws[ws.length-2])) ws.pop();
+  let s=ws.join(" ").toLowerCase().replace(/^[^a-z0-9áéíóúñ]+|[^a-z0-9áéíóúñ.]+$/g,"").replace(/\.$/,"")
+    .replace(/\b(\d)([a-záéíóúñ]{4,})/g,"$1 $2").replace(/([a-záéíóúñ]{3,})1\b/g,"$1i")   /* "1tucapel", "carozz1" */
+    .replace(/(\d)\s*(?:lts?|litros?|l)\b\.?/g,"$1 L").replace(/(\d)\s*(?:kgs?|kilos?)\b\.?/g,"$1 kg")
+    .replace(/(\d)\s*(?:grs?|g)\b\.?/g,"$1 g").replace(/(\d)\s*ml\b\.?/g,"$1 ml").replace(/(\d)\s*cc\b\.?/g,"$1 cc")
+    .replace(/(\d)\s*(?:unidades|unid|un)\b\.?/g,"$1 un")
+    .replace(/(\d)\s*(?:k+[gq9]|ko)\b/g,"$1 kg").replace(/(\d{2,4})\s+[690o]$/,"$1 g")   /* la g leída como 6 o 0, "kkg", "1ko" */
+    .replace(/([a-záéíóúñ]{3,}) ([1-5])1$/,"$1 $2 L");   /* "Leche entera 11": la L leída como 1 */
+  if(s.length>48){ s=s.slice(0,48); s=s.slice(0,s.lastIndexOf(" ")>20?s.lastIndexOf(" "):48); }
+  return s?s[0].toUpperCase()+s.slice(1):"";
 }
 /* El nombre solo se sugiere si calza con algo que ya tienes anotado, y gana el que está más cerca del precio. */
 function guessName(r,names){
@@ -1465,8 +1600,8 @@ function guessName(r,names){
 }
 /* OCR-PARSER-END */
 const TESS="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
-const OCRT={slow:20000,stall:90000,idle:180000};   /* tiempos de espera (ms) */
-let tessP=null, ocrW=null, ocrWP=null, ocrGen=0, ocrTok=0, ocrBusy=false, ocrHear=null, ocrIdleT=null, ocrUrl="", ocrFile=null, ocrOpts=[], ocrGuess="";
+const OCRT={slow:20000,stall:90000,idle:180000,cam:4000};   /* tiempos de espera (ms) */
+let tessP=null, ocrW=null, ocrWP=null, ocrGen=0, ocrTok=0, ocrBusy=false, ocrHear=null, ocrIdleT=null, ocrUrl="", ocrFile=null, ocrNames=[], ocrPrices=[], ocrUnit="", ocrKnown="";
 /* El lector se baja de internet solo la primera vez que se usa; después queda guardado en el celular. */
 function loadTess(){
   if(window.Tesseract) return Promise.resolve(window.Tesseract);
@@ -1494,15 +1629,17 @@ function dropOcr(){ clearTimeout(ocrIdleT); ocrGen++; ocrWP=null; const w=ocrW; 
 function armIdle(){ clearTimeout(ocrIdleT); ocrIdleT=setTimeout(()=>{ if(!ocrBusy) dropOcr(); },OCRT.idle); }
 /* Al abrir la cámara la app queda atrás: se suelta el lector para que el celular no se quede sin memoria. */
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&!ocrBusy) dropOcr(); });
-/* Foto achicada, en grises y con más contraste: así el lector la lee mejor y más rápido. */
-async function photoCanvas(file){
-  let src=null, w=0, h=0, done=()=>{};
-  try{ src=await createImageBitmap(file,{imageOrientation:"from-image"}); w=src.width; h=src.height; done=()=>{ if(src.close) src.close(); }; }
-  catch(_){ src=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=ocrUrl; }); w=src.naturalWidth; h=src.naturalHeight; }
-  if(!w||!h) throw new Error("img");
-  const k=Math.min(1,1800/Math.max(w,h)), W=Math.max(1,Math.round(w*k)), H=Math.max(1,Math.round(h*k));
+/* La foto tal como viene (derecha según el celular). Si el navegador no puede, se usa la imagen de la vista previa. */
+async function decodePhoto(file){
+  try{ const b=await createImageBitmap(file,{imageOrientation:"from-image"}); if(b.width&&b.height) return {src:b,w:b.width,h:b.height,done:()=>{ if(b.close) b.close(); }}; }catch(_){}
+  const im=await new Promise((res,rej)=>{ const x=new Image(); x.onload=()=>res(x); x.onerror=rej; x.src=ocrUrl; });
+  if(!im.naturalWidth||!im.naturalHeight) throw new Error("img");
+  return {src:im,w:im.naturalWidth,h:im.naturalHeight,done:()=>{}};
+}
+/* Un pedazo de la foto, del tamaño pedido, en grises y con más contraste: así el lector lee mejor y más rápido. */
+function grayCanvas(src,sx,sy,sw,sh,W,H){
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H;
-  const g=cv.getContext("2d",{willReadFrequently:true}); g.drawImage(src,0,0,W,H); done();
+  const g=cv.getContext("2d",{willReadFrequently:true}); g.imageSmoothingQuality="high"; g.drawImage(src,sx,sy,sw,sh,0,0,W,H);
   const d=g.getImageData(0,0,W,H), p=d.data, n=W*H, hist=new Uint32Array(256), Y=new Uint8Array(n);
   for(let i=0,j=0;j<n;i+=4,j++){ const y=(p[i]*299+p[i+1]*587+p[i+2]*114)/1000|0; Y[j]=y; hist[y]++; }
   let lo=0, hi=255, a=0; while(lo<254&&(a+=hist[lo])<n*.01) lo++; a=0; while(hi>lo+1&&(a+=hist[hi])<n*.01) hi--;
@@ -1510,6 +1647,22 @@ async function photoCanvas(file){
   for(let i=0,j=0;j<n;i+=4,j++){ const v=Math.max(0,Math.min(255,(Y[j]-lo)*sc)); p[i]=p[i+1]=p[i+2]=v; p[i+3]=255; }
   g.putImageData(d,0,0);
   return {cv,g,d,W,H};
+}
+/* Toda la foto, achicada a 1800 px como máximo. */
+async function photoCanvas(file){
+  const f=await decodePhoto(file), k=Math.min(1,1800/Math.max(f.w,f.h)), W=Math.max(1,Math.round(f.w*k)), H=Math.max(1,Math.round(f.h*k));
+  try{ return Object.assign(grayCanvas(f.src,0,0,f.w,f.h,W,H),{w:f.w,h:f.h}); } finally{ f.done(); }
+}
+/* El pedazo de la foto donde está la etiqueta: el precio, los escalones, el nombre y lo que se leyó cerca (medidas de la foto achicada). */
+function labelBox(r,W,H,up){
+  if(!r.main) return null;
+  const a=r.anchor, mh=a.h;
+  const ws=r.words.filter(w=>w.c>=50&&w.y1-w.y0>=mh*.2&&Math.abs((w.x0+w.x1)/2-a.x)<mh*8&&Math.abs((w.y0+w.y1)/2-a.y)<mh*6)
+    .concat([r.main.box,r.nbox,...(r.tiers||[]).map(t=>t.box)].filter(Boolean));
+  if(ws.length<2) return null;
+  const pad=mh*.9;
+  return {x0:Math.max(0,Math.min(...ws.map(w=>w.x0))-pad),x1:Math.min(W,Math.max(...ws.map(w=>w.x1))+pad),
+    y0:Math.max(0,Math.min(...ws.map(w=>w.y0))-pad*(up||1)),y1:Math.min(H,Math.max(...ws.map(w=>w.y1))+pad)};
 }
 const toBlob=cv=>new Promise(r=>{ try{ cv.toBlob(b=>r(b||cv),"image/png"); }catch(_){ r(cv); } });
 async function ocrPass(w,img,psm){
@@ -1522,15 +1675,27 @@ function ocrStage(msg,busy,prog){
   $("ocrwait").hidden=false; $("ocrmsg").textContent=msg;
   const bar=$("ocrbar"); bar.classList.toggle("busy",!!busy); bar.firstElementChild.style.width=busy?"":Math.round(Math.max(.04,prog||0)*100)+"%";
 }
+/* Con lo leído a la vista, abajo queda solo "Guardar"; "Otra foto" y "Galería" pasan arriba, bajo la foto. */
+function ocrForm(on){
+  $("ocrform").hidden=!on; $("ocrsave").hidden=!on; $("ocrpic").classList.toggle("small",on);
+  $("ocragain").hidden=on; if(on){ $("ocrgal").hidden=true; $("ocrretry").hidden=true; }
+  $("oh").textContent=on?"Revisa y guarda":"Precio de la foto";
+}
 function ocrEnd(err,retry){
+  ocrForm(false);
   $("ocrwait").hidden=true; $("ocrnote").hidden=true;
-  $("ocrerr").hidden=!err; $("ocrerr").textContent=err||"";
-  $("ocrretry").hidden=!retry;
+  $("ocrerr").hidden=!err; $("ocrerr").textContent=err||""; $("ocrerr").classList.remove("hint");
+  $("ocrretry").hidden=!retry; $("ocrgal").hidden=!!retry;   /* si falló el lector, otra foto no sirve de nada */
+}
+/* Botones de abajo: con foto, "Otra foto" y "Galería"; sin foto, "Sacar foto" y "Galería" destacada. */
+function ocrButtons(hasPhoto){
+  $("ocragain").textContent=hasPhoto?"Otra foto":"Sacar foto";
+  $("ocrgal").classList.toggle("primary",!hasPhoto); $("ocrgal").classList.toggle("soft",hasPhoto);
 }
 function openOcr(file){
-  if(ocrUrl) URL.revokeObjectURL(ocrUrl);
-  ocrFile=file; ocrUrl=URL.createObjectURL(file); $("ocrimg").src=ocrUrl;
-  $("ocrres").innerHTML=""; $("ocrname").hidden=true; ocrEnd(""); ocrStage("Preparando la foto…",true);
+  if(ocrUrl) URL.revokeObjectURL(ocrUrl); $("ocrimg").style.objectViewBox="";
+  ocrFile=file; ocrUrl=URL.createObjectURL(file); $("ocrimg").src=ocrUrl; $("ocrpic").hidden=false; ocrButtons(true);
+  ocrEnd(""); ocrStage("Preparando la foto…",true);
   if($("ocrsheet").hidden) showSheet("ocrsheet");
 }
 function closeOcr(){
@@ -1563,17 +1728,34 @@ async function readPhoto(file){
     ocrStage("Leyendo el precio…",false,0);
     const {W,H}=pic, blob=await toBlob(pic.cv);
     let words=await watch(ocrPass(w,blob,"3")), r=readLabel(words,W,H);
-    /* Si no hay precio, o el que hay es chico, por kilo o un número suelto, o hay "llevando 6" sin precio, se mira de nuevo buscando texto suelto. */
-    if(live()&&(!r.main||r.main.kind||r.main.plain||r.loose||r.main.h<H*.035)){
+    /* Si no hay precio, o el que hay es chico, por kilo o un número suelto, o hay "llevando 6" sin precio, o no salió el nombre, se mira de nuevo buscando texto suelto. */
+    if(live()&&(!r.main||r.main.kind||r.main.plain||r.loose||r.weak||r.main.h<H*.035||!r.name)){
       ocrStage("Mirando con más detalle…",false,0);
       const more=await watch(ocrPass(w,blob,"11"));
       words=words.concat(more.map(x=>Object.assign(x,{k:"b"+x.k}))); r=readLabel(words,W,H);
     }
     /* Letras claras sobre fondo oscuro: se prueba con la foto invertida. */
-    if(live()&&!r.prices.length&&!r.tier){
+    if(live()&&!r.prices.length&&!r.tiers.length){
       ocrStage("Mirando con más detalle…",false,0);
       const p=pic.d.data; for(let i=0;i<p.length;i+=4){ p[i]=p[i+1]=p[i+2]=255-p[i]; } pic.g.putImageData(pic.d,0,0);
       words=await watch(ocrPass(w,await toBlob(pic.cv),"3")); r=readLabel(words,W,H);
+    }
+    /* Etiqueta chica en la foto (sacada de lejos): se lee de nuevo solo ese pedazo, desde la foto original y más grande,
+       y lo que se lee ahí reemplaza a lo que se había leído en ese pedazo. */
+    let zb=r.main&&(r.main.h<40||(r.nh&&r.nh<18))?labelBox(r,W,H,3):null, zf=0, zc=null;   /* precio o nombre chicos */
+    if(zb) zf=Math.min(4,Math.max(70/r.main.h,r.nh?32/r.nh:0),2000/Math.max(zb.x1-zb.x0,zb.y1-zb.y0));
+    if(live()&&zb&&zf>=1.4){
+      ocrStage("Mirando la etiqueta más de cerca…",false,0);
+      try{ const f=await decodePhoto(file), s=f.w/W;
+        try{ zc=grayCanvas(f.src,zb.x0*s,zb.y0*s,(zb.x1-zb.x0)*s,(zb.y1-zb.y0)*s,Math.round((zb.x1-zb.x0)*zf),Math.round((zb.y1-zb.y0)*zf)); } finally{ f.done(); }
+      }catch(_){ zc=null; }
+      if(zc&&live()){
+        const zblob=await toBlob(zc.cv), back=(x,pre)=>({t:x.t,x0:zb.x0+x.x0/zf,y0:zb.y0+x.y0/zf,x1:zb.x0+x.x1/zf,y1:zb.y0+x.y1/zf,c:x.c,k:pre+x.k});
+        const out=x=>{ const cx=(x.x0+x.x1)/2, cy=(x.y0+x.y1)/2; return cx<zb.x0||cx>zb.x1||cy<zb.y0||cy>zb.y1; };
+        let zw=(await watch(ocrPass(w,zblob,"3"))).map(x=>back(x,"z")), r2=readLabel(words.filter(out).concat(zw),W,H);
+        if(live()&&(!r2.main||r2.loose||r2.weak||!r2.name)){ zw=zw.concat((await watch(ocrPass(w,zblob,"11"))).map(x=>back(x,"zb"))); r2=readLabel(words.filter(out).concat(zw),W,H); }
+        if(r2.main){ words=words.filter(out).concat(zw); r=r2; } else zc=null;
+      } else zc=null;
     }
     /* Error típico: el "$" grande se lee como "$5" o "$7" y el precio sale con un número de más ($51.290 en vez de $1.290).
        Si el lector duda, se relee solo ese pedazo, más chico y como una línea; se acepta solo si confirma el precio sin ese número. */
@@ -1586,7 +1768,9 @@ async function readPhoto(file){
       ocrStage("Revisando el precio…",false,0);
       for(const th of [64,48]){
         const k=th/h, cv=document.createElement("canvas"); cv.width=Math.max(8,Math.round(cw*k)); cv.height=Math.max(8,Math.round(chh*k));
-        const g=cv.getContext("2d"); g.imageSmoothingQuality="high"; g.drawImage(pic.cv,x0,y0,cw,chh,0,0,cv.width,cv.height);
+        const g=cv.getContext("2d"), Z=zc&&x0>=zb.x0&&y0>=zb.y0&&x0+cw<=zb.x1&&y0+chh<=zb.y1;
+        g.imageSmoothingQuality="high";
+        if(Z) g.drawImage(zc.cv,(x0-zb.x0)*zf,(y0-zb.y0)*zf,cw*zf,chh*zf,0,0,cv.width,cv.height); else g.drawImage(pic.cv,x0,y0,cw,chh,0,0,cv.width,cv.height);
         const r2=readLabel(await watch(ocrPass(w,await toBlob(cv),"7")),cv.width,cv.height);
         if(!live()) return 0;
         if(r2.main&&r2.main.c>=80&&r2.main.v===want){
@@ -1602,43 +1786,135 @@ async function readPhoto(file){
     if(fx) r=readLabel(words,W,H);
     else if(f1>1&&!r.prices.includes(f1)) r.prices.splice(1,0,f1);
     if(!live()) return;
-    ocrShow(r);
+    ocrShow(r,W,H);
   }catch(_){ if(live()) ocrEnd("No se pudo leer la foto. Prueba de nuevo.",true); }
   finally{ clearTimeout(stallT); clearTimeout(slowT); if(tok===ocrTok){ ocrBusy=false; ocrHear=null; } armIdle(); }
 }
-function ocrShow(r){
-  const o=[], T=r.tiers, N=r.prices[0]||0;
-  if(T.length) o.push({p:N,tiers:T});
-  r.prices.forEach(v=>{ if(!(T.length&&v===N)) o.push({p:v,reg:(r.regs||[]).includes(v)}); });
-  if(T.length&&!N) o.push({p:T[0].p});
-  ocrOpts=o.slice(0,4);
-  ocrGuess=$("cname").value.trim()?"":guessName(r,knownNames());
-  $("ocrname").hidden=!ocrGuess||!ocrOpts.length; $("ocrname").innerHTML=ocrGuess?`Producto: <b>${esc(ocrGuess)}</b>`:"";
-  const line=t=>t.pack?`Llevando ${t.min}: ${fmt(t.p)} c/u (${t.min} x ${fmt(t.pack)})`:t.nxm?`${t.nxm}: llevando ${t.min} sale a ${fmt(t.p)} c/u`:`Llevando ${t.min} o más: ${fmt(t.p)} c/u`;
-  $("ocrres").innerHTML=ocrOpts.map((x,i)=>{
-    const subs=x.tiers?x.tiers.map(line):x.reg?["Precio regular"]:[];
-    if(x.tiers&&!x.p) subs.push("No encontré el precio de 1 unidad.");
-    const main=x.tiers&&!x.p?`<b>Precio por cantidad</b>`:`<b class="num">${fmt(x.p)}</b>`;
-    return `<button type="button" class="ocropt${i?"":" first"}" data-oo="${i}" aria-label="Usar ${x.p?fmt(x.p):"el precio por cantidad"}">${main}${subs.map(t=>`<span>${t}</span>`).join("")}</button>`; }).join("");
-  if(ocrOpts.length) ocrEnd(ocrOpts.length>1?"Toca el precio correcto.":"Toca el precio para usarlo.");
-  else ocrEnd("No encontré un precio en la foto. Prueba más cerca de la etiqueta, derecha y sin reflejo.");
-  $("ocrerr").classList.toggle("hint",!!ocrOpts.length);
+/* Panel para revisar: todo lo que se leyó queda escrito y se puede corregir antes de guardar. */
+function ocrShow(r,W,H){
+  const T=r.tiers||[], N=r.prices[0]||0, typed=$("cname").value.trim(), label=r.name||"", known=guessName(r,knownNames());
+  if(!N&&!T.length&&!label&&!known) return ocrEnd("No encontré un precio en la foto. Prueba más cerca de la etiqueta, derecha y sin reflejo.");
+  ocrEnd(""); ocrForm(true); ocrZoom(r,W,H); ocrKnown=known;
+  /* Nombre: lo que escribiste antes de la foto, si no el de la etiqueta completo; los otros quedan a un toque. */
+  ocrNames=[]; [[typed,"Lo que escribiste"],[label,"De la etiqueta"],[known,"De tu lista"]].forEach(([v,from])=>{ if(v&&!ocrNames.some(c=>norm(c.v)===norm(v))) ocrNames.push({v,from}); });
+  $("oname").value=ocrNames.length?ocrNames[0].v:""; $("oname").classList.remove("need");
+  ocrPrices=r.prices.slice(0,4).map(v=>({p:v,reg:(r.regs||[]).includes(v)}));
+  $("oprice").value=N?plain(N):""; $("oqty").value=$("cqty").value.trim();
+  ocrUnit=UNIT[r.unit]?r.unit:"";
+  const cc=$("ccat").value; fillCats(CATS.includes(cc)?cc:CATS[0]||"",$("ocat")); fillSub($("osub"),$("ocat").value,subOn()?$("csub").value:"");
+  $("osubl").hidden=!subOn();
+  setOUnit(ocrUnit||$("cunit").value||"u"); oKnown();
+  /* Precio por cantidad: una fila por escalón; el 3x2 y los packs dicen de dónde salió el precio c/u. */
+  const TT=T.slice(0,TMAX).map(t=>({min:t.min,p:t.p}));
+  $("otierbox").hidden=!TT.length; $("otieradd").hidden=!!TT.length;
+  tierRows(TT.length?TT:[null],"otierrows","otiermore");
+  const why=T.filter(t=>t.pack||t.nxm).map(t=>t.pack?`Pack de ${t.min} a ${fmt(t.pack)}: ${fmt(t.p)} c/u.`:`${t.nxm}: llevando ${t.min}, sale a ${fmt(t.p)} c/u.`);
+  $("otierhint").textContent=why.join(" "); $("otierhint").hidden=!why.length;
+  if(!N&&!T.length){ $("ocrerr").textContent="No encontré el precio en la foto. Escríbelo o saca otra."; $("ocrerr").classList.add("hint"); $("ocrerr").hidden=false; }
+  else if(T.length&&!N){ $("ocrerr").textContent="No encontré el precio de 1 unidad. Escríbelo si lo ves."; $("ocrerr").classList.add("hint"); $("ocrerr").hidden=false; }
+  oChips(); oStore();
 }
-function ocrApply(x){
-  $("cprice").value=x.p?plain(x.p):""; autoV=null; pendTiers=x.tiers?x.tiers.map(t=>({min:t.min,p:t.p})):null;
-  const nm=ocrGuess&&!$("cname").value.trim()?ocrGuess:"";
-  if(nm){ $("cname").value=nm; $("cname").dispatchEvent(new Event("change")); }
-  closeOcr(); syncNext();
-  if(!$("cname").value.trim()) $("cname").focus();
-  else { const pl=$("cf").querySelector(".plus"); pl.classList.remove("nudge"); void pl.offsetWidth; pl.classList.add("nudge"); }
+/* La foto chica se acerca a la etiqueta (el pedazo donde está lo que se leyó), para comparar con lo escrito. */
+function ocrZoom(r,W,H){
+  const img=$("ocrimg"); img.style.objectViewBox="";
+  const b=W&&H?labelBox(r,W,H):null; if(!b) return;
+  const fit=(lo,hi,min,max)=>{ if(hi-lo>=min) return [lo,hi]; const c=(lo+hi)/2; lo=Math.max(0,Math.min(max-min,c-min/2)); return [lo,lo+min]; };
+  let [x0,x1]=fit(b.x0,b.x1,W*.4,W), [y0,y1]=fit(b.y0,b.y1,H*.3,H);
+  const q=v=>(Math.max(0,Math.min(1,v))*100).toFixed(2)+"%";
+  img.style.objectViewBox=`inset(${q(y0/H)} ${q(1-x1/W)} ${q(1-y1/H)} ${q(x0/W)})`;
 }
-$("ocrres").addEventListener("click",e=>{ const b=e.target.closest("[data-oo]"); if(b&&ocrOpts[+b.dataset.oo]) ocrApply(ocrOpts[+b.dataset.oo]); });
-$("cambtn").addEventListener("click",()=>{ $("camin").value=""; $("camin").click(); });
-$("camin").addEventListener("change",()=>{ const f=$("camin").files&&$("camin").files[0]; if(f) readPhoto(f); $("camin").value=""; });
-$("ocragain").onclick=()=>{ $("camin").value=""; $("camin").click(); };
+function setOUnit(u){ u=UNIT[u]?u:"u"; $("ounit").value=u; const t=cap(UNIT[u].ph); $("opricel").firstChild.textContent=t; $("otierpl").textContent=t; }
+/* Si el nombre es algo que ya tienes, se usan su categoría, subcategoría y unidad (la unidad de la etiqueta manda). */
+function oKnown(){
+  const nm=$("oname").value; let k=norm(nm); if(!k) return;
+  const direct=!!hist[k]||inv.some(x=>norm(x.name)===k);
+  if(!direct&&ocrKnown) k=norm(ocrKnown);   /* "Pan de molde" va donde tienes "Pan" */
+  const h=hist[k], same=inv.find(x=>norm(x.name)===k&&x.cat===$("ocat").value), i=same||inv.find(x=>norm(x.name)===k);
+  const c=(i&&i.cat)||(h&&h.cat);
+  if(c&&!same&&c!==$("ocat").value){ ensureCat(c); $("ocat").value=c; fillSub($("osub"),c,""); }
+  if(i&&subOn()) fillSub($("osub"),$("ocat").value,i.sub||"");
+  /* la unidad del de tu lista sirve si es el mismo nombre; "Aceite maravilla 1 L" se compra por botella aunque el aceite de la casa se cuente en litros */
+  if(!ocrUnit){ const sp=storePrice(k,curStore()), u=(sp&&sp.unit)||(i&&i.unit)||(h&&h.unit), sized=/\d\s*(?:kg|g|l|ml|cc|un)\b/i.test(nm);
+    if(!direct&&sized) setOUnit("u"); else if(u&&UNIT[u]) setOUnit(u); }
+}
+function oChips(){
+  const v=norm($("oname").value), pv=readP($("oprice"));
+  $("onames").innerHTML=ocrNames.map((c,i)=>norm(c.v)===v?"":`<button type="button" class="ochip" data-on="${i}" aria-label="Usar el nombre ${esc(c.v)}">${c.from}: <b>${esc(c.v)}</b></button>`).join("");
+  $("oprices").innerHTML=ocrPrices.map(x=>x.p===pv?"":`<button type="button" class="ochip num" data-op="${x.p}" aria-label="Usar ${fmt(x.p)}${x.reg?", precio regular":""}"><b>${fmt(x.p)}</b>${x.reg?" regular":""}</button>`).join("");
+}
+function oStore(){
+  const el=$("ostore"), shop=curStore();
+  if(!storeOn()){ el.hidden=true; return; }
+  if(!shop){ el.textContent="Elige el súper en la compra para que este precio quede anotado ahí."; el.hidden=false; return; }
+  const sp=storePrice(norm($("oname").value),shop,$("ounit").value), p=readP($("oprice"));
+  el.textContent=sp&&p>0&&r2(sp.p)!==r2(p)?`En ${shop} lo tenías a ${fmtU(sp.p,sp.unit)}. Al guardar, queda el precio nuevo.`:`Al guardar, el precio queda anotado en ${shop}.`;
+  el.hidden=false;
+}
+$("oname").addEventListener("input",()=>{ $("oname").classList.remove("need"); oChips(); });
+$("oname").addEventListener("change",()=>{ oKnown(); oChips(); oStore(); });
+$("oprice").addEventListener("input",()=>{ oChips(); oStore(); });
+$("ounit").addEventListener("change",()=>{ ocrUnit=$("ounit").value; setOUnit(ocrUnit); oStore(); });
+$("onames").addEventListener("click",e=>{ const b=e.target.closest("[data-on]"), c=b&&ocrNames[+b.dataset.on]; if(!c) return;
+  $("oname").value=c.v; $("oname").classList.remove("need"); oKnown(); oChips(); oStore(); });
+$("oprices").addEventListener("click",e=>{ const b=e.target.closest("[data-op]"); if(!b) return; $("oprice").value=plain(+b.dataset.op); oChips(); oStore(); });
+/* La tecla "listo" del teclado solo lo cierra; se guarda con el botón. */
+$("ocrform").addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.matches("input")){ e.preventDefault(); e.target.blur(); } });
+function ocrSave(){
+  const name=$("oname").value.trim();
+  if(!name){ $("oname").classList.add("need"); $("oname").focus(); return; }
+  if(!CATS.includes($("ocat").value)) return needCat($("ocat"),ocrSave);
+  let q=$("oqty").value.trim()===""?1:readQ($("oqty")); if(isNaN(q)||q<=0) q=1;
+  const unit=$("ounit").value, price=readP($("oprice")), T=readTiers("otierrows"), shop=curStore();
+  const sub=!subOn()||$("osub").value==="__new"?"":$("osub").value;
+  const noted=price>0&&!!shop&&notePrice(name,shop,price,unit,T);
+  addCart({name,cat:$("ocat").value,price,qty:q,unit,sub,...(T.length?{tiers:T}:{})});
+  closeOcr();
+  $("cname").value=""; $("cprice").value=""; $("cqty").value=""; $("cunit").value="u"; $("cprice").placeholder=ppOf("u"); pendTiers=null; autoV=null;
+  render(); reveal("v-compra"); syncNext();
+  toast(noted?"Guardado. Precio anotado en "+shop:"Guardado en la compra");
+}
+$("ocrsave").onclick=ocrSave;
+$("oagain").onclick=()=>openPicker(false);
+$("ogal").onclick=()=>openPicker(true);
+/* Cámara o galería. Si la cámara no se abre (por ejemplo, Chrome sin permiso) o vuelves sin foto, se ofrece una foto guardada. */
+let camT=null, camOn=false, camLeft=false;
+const camFlag=on=>{ try{ on?sessionStorage.setItem("casa-cam",String(Date.now())):sessionStorage.removeItem("casa-cam"); }catch(_){} };
+function openPicker(gallery){
+  const inp=$(gallery?"galin":"camin"); inp.value="";
+  if(!gallery){ camOn=true; camLeft=false; camFlag(true); clearTimeout(camT);
+    /* Si la app nunca quedó atrás, la cámara no se abrió. Si hay un aviso encima (como el de permisos), se espera. */
+    const chk=()=>{ if(!camOn||camLeft) return; if(document.hasFocus&&!document.hasFocus()){ camT=setTimeout(chk,1000); return; } camDone(); noPhoto("fail"); };
+    camT=setTimeout(chk,OCRT.cam); }
+  inp.click();
+}
+function camDone(){ camOn=false; clearTimeout(camT); camFlag(false); }
+document.addEventListener("visibilitychange",()=>{ if(document.hidden){ if(camOn) camLeft=true; } else if(camOn) setTimeout(()=>{ if(!document.hidden) camFlag(false); },2000); });
+function noPhoto(why){
+  const msg=why==="fail"?"No se abrió la cámara. Revisa que Chrome tenga permiso para usarla: Ajustes del celular, Aplicaciones, Chrome, Permisos, Cámara. También puedes elegir una foto que ya tengas."
+    :why==="killed"?"Parece que el celular cerró la app mientras estaba la cámara. Prueba de nuevo, o saca la foto con la cámara del celular y elígela desde la galería."
+    :"¿Prefieres usar una foto que ya tienes? Elígela desde la galería.";
+  /* Si ya estabas revisando una foto, no se pierde lo que tenías: solo se avisa. */
+  if(!$("ocrsheet").hidden&&!$("ocrform").hidden){
+    if(why!=="back"){ $("ocrerr").textContent=msg; $("ocrerr").classList.remove("hint"); $("ocrerr").hidden=false; }
+    return;
+  }
+  ocrTok++; ocrBusy=false; ocrFile=null; if(ocrUrl){ URL.revokeObjectURL(ocrUrl); ocrUrl=""; }
+  $("ocrimg").removeAttribute("src"); $("ocrpic").hidden=true;
+  ocrEnd(msg); ocrButtons(false);
+  if($("ocrsheet").hidden) showSheet("ocrsheet");
+}
+$("cambtn").addEventListener("click",()=>openPicker(false));
+$("camin").addEventListener("change",()=>{ camDone(); const f=$("camin").files&&$("camin").files[0]; if(f) readPhoto(f); $("camin").value=""; });
+$("camin").addEventListener("cancel",()=>{ const left=camLeft, on=camOn; camDone(); if(on) noPhoto(left?"back":"fail"); });
+$("galin").addEventListener("change",()=>{ const f=$("galin").files&&$("galin").files[0]; if(f) readPhoto(f); $("galin").value=""; });
+$("ocragain").onclick=()=>openPicker(false);
+$("ocrgal").onclick=()=>openPicker(true);
 $("ocrretry").onclick=()=>{ if(ocrFile) readPhoto(ocrFile); };
 $("ocrclose").onclick=closeOcr;
-if(inClaude){ $("cambtn").hidden=true; $("pwrap").classList.add("nocam"); }
+if(inClaude){ $("cambtn").hidden=true; $("pwrap").classList.add("nocam"); }   /* en la copia de Claude no se puede bajar el lector */
+/* Al abrir: si el celular cerró la app mientras estaba la cámara (hace menos de 3 minutos), se avisa y se ofrece la galería. */
+try{ const t=+sessionStorage.getItem("casa-cam"); sessionStorage.removeItem("casa-cam");
+  if(t&&Date.now()-t<180000&&!inClaude&&prefs.priceMode==="item") setTimeout(()=>noPhoto("killed"),400); }catch(_){}
 $("cprice").placeholder=ppOf("u");   /* en la copia de Claude no se puede bajar el lector */
 
 /* ---------- Gastos ---------- */
@@ -1786,23 +2062,31 @@ function openEdit(id,kind){
 }
 const TMAX=6;   /* hasta 6 cantidades por producto */
 const tierRow=t=>`<div class="two trow"><input class="num" type="text" inputmode="decimal" data-tm placeholder="Ej: 6" aria-label="Llevando desde" autocomplete="off" enterkeyhint="done" value="${t?plain(t.min):""}"><input type="text" inputmode="decimal" data-tp placeholder="Ej: 1.190" aria-label="Precio c/u" autocomplete="off" enterkeyhint="done" value="${t?plain(t.p):""}"></div>`;
-function tierRows(list){ $("etierrows").innerHTML=list.map(tierRow).join(""); $("etiermore").hidden=list.length>=TMAX; }
-$("etieradd").onclick=()=>{ $("etieradd").hidden=true; $("etierbox").hidden=false; $("etierrows").querySelector("[data-tm]").focus(); };
-$("etiermore").onclick=()=>{ const rows=$("etierrows").children; if(rows.length>=TMAX) return;
-  $("etierrows").insertAdjacentHTML("beforeend",tierRow(null));
-  $("etiermore").hidden=rows.length>=TMAX; rows[rows.length-1].querySelector("[data-tm]").focus(); };
+function tierRows(list,rows="etierrows",more="etiermore"){ $(rows).innerHTML=list.map(tierRow).join(""); $(more).hidden=list.length>=TMAX; }
+const readTiers=id=>{ const T=[]; $(id).querySelectorAll(".trow").forEach(r=>{ const m=readQ(r.querySelector("[data-tm]")), p=readP(r.querySelector("[data-tp]")); if(m>0&&p>0&&!T.some(x=>x.min===m)) T.push({min:m,p}); }); return T.sort((a,b)=>a.min-b.min); };
+function tierUI(add,box,rows,more){
+  $(add).onclick=()=>{ $(add).hidden=true; $(box).hidden=false; $(rows).querySelector("[data-tm]").focus(); };
+  $(more).onclick=()=>{ const r=$(rows).children; if(r.length>=TMAX) return;
+    $(rows).insertAdjacentHTML("beforeend",tierRow(null));
+    $(more).hidden=r.length>=TMAX; r[r.length-1].querySelector("[data-tm]").focus(); };
+}
+tierUI("etieradd","etierbox","etierrows","etiermore");
+tierUI("otieradd","otierbox","otierrows","otiermore");
 function closeEdit(){ hideSheet("sheet"); editId=null; }
 function saveEdit(){
   const list=editKind==="cart"?cart:inv;
   const it=list.find(i=>i.id===editId); if(!it) return closeEdit();
+  const before=editKind==="cart"?JSON.stringify([it.name,it.price,un(it),tcopy(it)]):"";
   const n=$("ename").value.trim(); if(n) it.name=n;
   it.cat=$("ecat").value; if(subOn()) it.sub=$("esub").value==="__new"?"":$("esub").value;
   const q=readQ($("eqty")); it.unit=$("eunit").value;
   if(editKind==="cart"){ it.qty=q>0?q:it.qty; it.price=readP($("eprice"));
-    if(prefs.priceMode==="item"){ const T=[];
-      $("etierrows").querySelectorAll(".trow").forEach(r=>{ const m=readQ(r.querySelector("[data-tm]")), p=readP(r.querySelector("[data-tp]")); if(m>0&&p>0&&!T.some(x=>x.min===m)) T.push({min:m,p}); });
-      delete it.tier; if(T.length) it.tiers=T.sort((a,b)=>a.min-b.min); else delete it.tiers; }
-    saveCart(); }
+    if(prefs.priceMode==="item"){ const T=readTiers("etierrows");
+      delete it.tier; if(T.length) it.tiers=T; else delete it.tiers; }
+    saveCart();
+    /* Si cambiaste el precio o los precios por cantidad estando en un súper, quedan guardados en ese súper. */
+    const shop=curStore();
+    if(prefs.priceMode==="item"&&shop&&it.price>0&&JSON.stringify([it.name,it.price,un(it),tcopy(it)])!==before&&notePrice(it.name,shop,it.price,un(it),tcopy(it))){ closeEdit(); render(); toast("Precio guardado en "+shop); return; } }
   else { it.qty=Math.max(0,isNaN(q)?it.qty:q); saveInv(); }
   closeEdit(); render();
 }
